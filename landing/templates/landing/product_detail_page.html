@@ -1,0 +1,92 @@
+{% load static product_tags %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page.seo_title|default:product.name }}</title>
+  <meta name="description" content="{{ product.description|truncatechars:160 }}" />
+  <link rel="canonical" href="{{ request.build_absolute_uri }}" />
+  <meta property="og:type" content="product" />
+  <meta property="og:title" content="{{ product.name }}" />
+  <meta property="og:description" content="{{ product.description|truncatechars:200 }}" />
+  <meta property="og:url" content="{{ request.build_absolute_uri }}" />
+  {% if site_name %}<meta property="og:site_name" content="{{ site_name }}" />{% endif %}
+  {% if product.image %}
+    <meta property="og:image" content="{{ product.image.url }}" />
+  {% endif %}
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ product.name }}" />
+  <meta name="twitter:description" content="{{ product.description|truncatechars:200 }}" />
+  {% if product.image %}<meta name="twitter:image" content="{{ product.image.url }}" />{% endif %}
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": "{{ product.name|escapejs }}",
+      "sku": "{{ product.sku|escapejs }}",
+      "image": [{% if product.image %}"{{ product.image.url }}"{% endif %}],
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": "RUB",
+        "price": "{{ product.price }}",
+        "availability": "{% if product.is_available %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main>
+    <article itemscope itemtype="https://schema.org/Product">
+      <header>
+        <h1 itemprop="name">{{ product.name }}</h1>
+      </header>
+      <div class="media">
+        {% if product.image %}
+          <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy" itemprop="image" />
+        {% endif %}
+      </div>
+      <section class="info">
+        <p itemprop="description">{{ product.description }}</p>
+        <p itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+          <span itemprop="price">{{ product.price }}</span>
+          <meta itemprop="priceCurrency" content="RUB" />
+        </p>
+      </section>
+
+      <section class="cta">
+        <form method="post">
+          {% csrf_token %}
+          {{ order_form.non_field_errors }}
+          <div>
+            {{ order_form.full_name.label_tag }}
+            {{ order_form.full_name }}
+          </div>
+          <div>
+            {{ order_form.phone.label_tag }}
+            {{ order_form.phone }}
+          </div>
+          <div>
+            {{ order_form.email.label_tag }}
+            {{ order_form.email }}
+          </div>
+          <div>
+            {{ order_form.quantity.label_tag }}
+            {{ order_form.quantity }}
+          </div>
+          <div>
+            {{ order_form.comment.label_tag }}
+            {{ order_form.comment }}
+          </div>
+          <button type="submit">Добавить в заказ</button>
+        </form>
+      </section>
+
+      <section class="related">
+        <h2>Похожие товары</h2>
+        {% render_product_grid related_products %}
+      </section>
+    </article>
+  </main>
+</body>
+</html>

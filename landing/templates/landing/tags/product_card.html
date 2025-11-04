@@ -1,0 +1,12 @@
+<div class="product-card" itemscope itemtype="https://schema.org/Product">
+  <a href="{% if product.detail_pages.first %}{{ product.detail_pages.first.url }}{% else %}#{% endif %}" itemprop="url">
+    {% if product.image %}
+      <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy" width="320" height="240" itemprop="image" />
+    {% endif %}
+    <h3 itemprop="name">{{ product.name }}</h3>
+  </a>
+  <div class="price" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+    <span itemprop="price">{{ product.price }}</span>
+    <meta itemprop="priceCurrency" content="RUB" />
+  </div>
+</div>

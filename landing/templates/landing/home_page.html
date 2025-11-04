@@ -1,0 +1,54 @@
+{% load static product_tags %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page.seo_title|default:page.title }}</title>
+  <meta name="description" content="{{ page.search_description }}" />
+</head>
+<body>
+  <main>
+    {% for block in page.body %}
+      {% if block.block_type == 'featured' %}
+        <section>
+          <h2>{{ block.value.title|default:"Рекомендуем" }}</h2>
+          <div class="grid">
+            {% render_product_grid featured_products %}
+          </div>
+        </section>
+      {% elif block.block_type == 'grid' %}
+        <section>
+          <h2>{{ block.value.title }}</h2>
+          <div class="grid">
+            {% with slug=block.value.category_slug %}
+              {% render_product_grid featured_products slug %}
+            {% endwith %}
+          </div>
+        </section>
+      {% elif block.block_type == 'testimonials' %}
+        <section>
+          <h2>{{ block.value.title }}</h2>
+          <div class="testimonials">
+            {% for it in block.value.items %}
+              <blockquote>
+                <p>“{{ it.quote }}”</p>
+                {% if it.avatar %}
+                  <img src="{{ it.avatar.url }}" alt="{{ it.author }}" loading="lazy" width="64" height="64" />
+                {% endif %}
+                <footer>— {{ it.author }}</footer>
+              </blockquote>
+            {% endfor %}
+          </div>
+        </section>
+      {% elif block.block_type == 'cta' %}
+        <section>
+          <h2>{{ block.value.title }}</h2>
+          <p>{{ block.value.subtitle }}</p>
+          <a href="{{ page.get_url }}#catalog" class="btn">{{ block.value.button_text }}</a>
+        </section>
+      {% endif %}
+    {% endfor %}
+  </main>
+</body>
+</html>

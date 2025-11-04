@@ -1,0 +1,46 @@
+{% load static product_tags %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page.seo_title|default:page.title }}</title>
+  <meta name="description" content="{{ page.search_description }}" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>{{ page.title }}</h1>
+      <p>{{ page.intro }}</p>
+      <form method="get">
+        <input type="search" name="q" value="{{ q }}" placeholder="Поиск" />
+        <select name="category">
+          <option value="">Все категории</option>
+          {% for c in categories %}
+            <option value="{{ c.slug }}" {% if selected_category == c.slug %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        <input type="number" step="0.01" name="price_min" placeholder="мин, ₽" value="{{ price_min }}" />
+        <input type="number" step="0.01" name="price_max" placeholder="макс, ₽" value="{{ price_max }}" />
+        <button type="submit">Фильтр</button>
+      </form>
+    </header>
+
+    <section id="catalog">
+      {% render_product_grid products %}
+    </section>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="pagination" aria-label="Страницы">
+        {% if page_obj.has_previous %}
+          <a href="?q={{ q }}&category={{ selected_category }}&price_min={{ price_min }}&price_max={{ price_max }}&page={{ page_obj.previous_page_number }}">Назад</a>
+        {% endif %}
+        <span>Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a href="?q={{ q }}&category={{ selected_category }}&price_min={{ price_min }}&price_max={{ price_max }}&page={{ page_obj.next_page_number }}">Далее</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  </main>
+</body>
+</html>
