@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block title %}Quick Order{% endblock %}
+{% block content %}
+<h1>Quick Order</h1>
+<form method="post" class="form-horizontal" style="max-width:560px;">
+  {% csrf_token %}
+  <div class="form-row">
+    {{ form.non_field_errors }}
+  </div>
+  <div class="form-row">
+    <label>Product ID</label>
+    {{ form.product_id }}
+    {{ form.product_id.errors }}
+  </div>
+  <div class="form-row">
+    <label>Quantity</label>
+    {{ form.quantity }}
+    {{ form.quantity.errors }}
+  </div>
+  <div class="form-row">
+    <label>Full name</label>
+    {{ form.full_name }}
+    {{ form.full_name.errors }}
+  </div>
+  <div class="form-row">
+    <label>Phone</label>
+    {{ form.phone }}
+    {{ form.phone.errors }}
+  </div>
+  <div class="form-row">
+    <label>Email</label>
+    {{ form.email }}
+    {{ form.email.errors }}
+  </div>
+  <div class="form-row">
+    <label>Address</label>
+    {{ form.address }}
+    {{ form.address.errors }}
+  </div>
+  <div class="submit-row">
+    <button type="submit" class="default">Create Order</button>
+  </div>
+</form>
+{% endblock %}

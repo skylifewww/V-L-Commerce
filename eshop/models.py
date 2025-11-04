@@ -3,9 +3,11 @@ import uuid
 from decimal import Decimal
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
-from django.db.models.signals import pre_save, post_delete
+from django.conf import settings
+from simple_history.models import HistoricalRecords
+import requests
 
 
 class Product(models.Model):
@@ -89,6 +91,8 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    history = HistoricalRecords()
+
     def __str__(self) -> str:
         return f"Order #{self.id}"
 
@@ -111,12 +115,43 @@ class Order(models.Model):
             self.status = self.Status.CANCELLED
             self.save(update_fields=["status", "updated_at"]) 
 
+class OrderComment(models.Model):
+    order = models.ForeignKey("Order", on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Comment #{self.id} on Order #{self.order_id}"
+
+
+@receiver(post_save, sender=Order)
+def notify_new_order(sender, instance: "Order", created: bool, **kwargs):
+    if not created:
+        return
+    token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
+    chat_id = getattr(settings, "TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+    try:
+        msg = f"New order #{instance.id}. Status: {instance.get_status_display()}"
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data={"chat_id": chat_id, "text": msg},
+            timeout=5,
+        )
+    except Exception:
+        # Fail silently
+        pass
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey("Order", on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey("Product", on_delete=models.PROTECT, related_name="order_items")
     quantity = models.PositiveIntegerField(default=1)
+    shipped_quantity = models.PositiveIntegerField(default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    history = HistoricalRecords()
 
     def __str__(self) -> str:
         return f"{self.product} x{self.quantity}"
@@ -134,6 +169,9 @@ class OrderItem(models.Model):
                 product = Product.objects.filter(pk=self.product_id).first()
             if product and product.stock is not None and self.quantity > product.stock:
                 raise ValidationError({"quantity": "Insufficient stock for the requested quantity."})
+        # Business rule: cannot reduce below shipped
+        if self.quantity is not None and self.shipped_quantity is not None and self.quantity < self.shipped_quantity:
+            raise ValidationError({"quantity": "Quantity cannot be less than already shipped."})
 
     def save(self, *args, **kwargs):
         # Auto-snapshot price from product if not provided
@@ -180,6 +218,9 @@ def adjust_stock_on_order_item_update(sender, instance: "OrderItem", **kwargs):
             instance.product.stock = (instance.product.stock or 0) - instance.quantity
             instance.product.save(update_fields=["stock"]) 
         return
+    # Business rule: cannot reduce below shipped
+    if instance.quantity < (prev.shipped_quantity or 0):
+        raise ValidationError({"quantity": "Quantity cannot be less than already shipped."})
     # Same product; adjust by delta
     delta = int(instance.quantity) - int(prev.quantity)
     if delta == 0:

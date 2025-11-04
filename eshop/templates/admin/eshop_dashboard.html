@@ -1,0 +1,86 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block title %}E-Shop Dashboard{% endblock %}
+{% block content %}
+<h1>E-Shop Dashboard</h1>
+<div style="display:flex; gap:24px; flex-wrap:wrap; margin-bottom:24px;">
+  <div style="flex:1; min-width:260px; padding:12px; border:1px solid #ddd; border-radius:8px;">
+    <h3>Total Revenue (30d)</h3>
+    <p style="font-size:20px; font-weight:600;">{{ revenue|default:"0.00" }}</p>
+  </div>
+  <div style="flex:1; min-width:260px; padding:12px; border:1px solid #ddd; border-radius:8px;">
+    <h3>Pending Orders</h3>
+    <p style="font-size:20px; font-weight:600;">{{ pending_orders|length }}</p>
+  </div>
+</div>
+
+<div style="display:flex; gap:24px; flex-wrap:wrap;">
+  <div style="flex:2; min-width:360px;">
+    <h3>Orders by Day (30d)</h3>
+    <canvas id="ordersByDay"></canvas>
+  </div>
+  <div style="flex:1; min-width:320px;">
+    <h3>Top Products (qty)</h3>
+    <canvas id="topProducts"></canvas>
+  </div>
+</div>
+
+<div style="display:flex; gap:24px; margin-top:24px; flex-wrap:wrap;">
+  <div style="flex:1; min-width:320px;">
+    <h3>Low Stock (<=5)</h3>
+    <table class="table table-sm">
+      <thead><tr><th>ID</th><th>Name</th><th>Stock</th></tr></thead>
+      <tbody>
+      {% for p in low_stock %}
+        <tr>
+          <td>{{ p.id }}</td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.stock }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">No low-stock items 🎉</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="flex:1; min-width:320px;">
+    <h3>Unshipped Orders</h3>
+    <table class="table table-sm">
+      <thead><tr><th>ID</th><th>Status</th><th>Created</th></tr></thead>
+      <tbody>
+      {% for o in pending_orders %}
+        <tr>
+          <td><a href="{% url 'admin:eshop_order_change' o.id %}">#{{ o.id }}</a></td>
+          <td>{{ o.status }}</td>
+          <td>{{ o.created_at }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">No pending orders</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ordersByDay = JSON.parse('{{ orders_by_day|safe|escapejs }}');
+  const topProducts = JSON.parse('{{ top_products|safe|escapejs }}');
+
+  const dayLabels = ordersByDay.map(i => i.day);
+  const dayCounts = ordersByDay.map(i => i.cnt);
+  new Chart(document.getElementById('ordersByDay'), {
+    type: 'line',
+    data: { labels: dayLabels, datasets: [{ label: 'Orders', data: dayCounts, borderColor: '#2563eb', fill:false }]},
+    options: { scales: { y: { beginAtZero: true }}}
+  });
+
+  const prodLabels = topProducts.map(i => i["product__name"]);
+  const prodQty = topProducts.map(i => i.qty);
+  new Chart(document.getElementById('topProducts'), {
+    type: 'bar',
+    data: { labels: prodLabels, datasets: [{ label: 'Qty', data: prodQty, backgroundColor: '#16a34a' }]},
+    options: { indexAxis: 'y', scales: { x: { beginAtZero: true }}}
+  });
+</script>
+{% endblock %}
