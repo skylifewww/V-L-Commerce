@@ -1,4 +1,5 @@
 from django.db import models, transaction
+import uuid
 from decimal import Decimal
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
@@ -78,6 +79,7 @@ class Order(models.Model):
         SHIPPED = "shipped", "Shipped"
         CANCELLED = "cancelled", "Cancelled"
 
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     customer = models.ForeignKey(
         "Customer", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
     )

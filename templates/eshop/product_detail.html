@@ -1,0 +1,31 @@
+{% load static %}
+{% if messages %}
+<ul class="messages">
+  {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+</ul>
+{% endif %}
+<article>
+  <h1>{{ product.name }}</h1>
+  <p>{{ product.description }}</p>
+  <p>Price: {{ product.price }}</p>
+  <p>Stock: <span id="stock-count">{{ product.stock }}</span></p>
+  <form method="post" action="{% url 'eshop:order_create' %}">
+    {% csrf_token %}
+    <input type="hidden" name="customer_data" value='{"full_name":"Anon","phone":"+000"}'>
+    <input type="hidden" name="shipping_address" value="">
+    <input type="hidden" name="products" value='[{"product_id": {{ product.id }}, "quantity": 1}]'>
+    <button type="submit">Quick order</button>
+  </form>
+</article>
+<script>
+  async function refreshStock(){
+    try{
+      const res = await fetch('{% url "eshop:ajax_stock" product.id %}');
+      if(res.ok){
+        const data = await res.json();
+        document.getElementById('stock-count').innerText = data.stock;
+      }
+    }catch(e){}
+  }
+  setInterval(refreshStock, 10000);
+</script>

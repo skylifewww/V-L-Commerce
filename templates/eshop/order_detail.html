@@ -1,0 +1,14 @@
+{% if messages %}
+<ul class="messages">
+  {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+</ul>
+{% endif %}
+<h1>Order {{ order.id }} ({{ order.status }})</h1>
+<p>Total: {{ order.total|floatformat:2 }}</p>
+<p id="str-total">{{ str_total }}</p>
+<span style="display:none" id="total-raw">{{ order.total }}</span>
+<ul>
+  {% for item in order.items.all %}
+  <li>{{ item.product.name }} x {{ item.quantity }} = {{ item.subtotal|floatformat:2 }}</li>
+  {% endfor %}
+</ul>
