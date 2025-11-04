@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.env
+.venv/
+venv/
+.env.local
+.env.development
+.env.production
+!.env.example
+
+# Django
+staticfiles/
+media/
+*.log
+*.sqlite3
+local_settings.py
+
+# VSCode / IDE
+.vscode/
+.idea/
+*.iml
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+
+# MacOS
+.DS_Store
+
+# Migrations auto-generated caches
+**/migrations/**/__pycache__/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
