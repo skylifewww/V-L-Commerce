@@ -1,5 +1,10 @@
-from django.db import models
+from django.db import models, transaction
 from decimal import Decimal
+from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db.models.signals import pre_save, post_delete
 
 
 class Product(models.Model):
@@ -23,10 +28,18 @@ class Product(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    def is_available(self) -> bool:
+        """Product is available if it is active and has stock > 0."""
+        return bool(self.is_active and self.stock > 0)
+
+    def get_absolute_url(self) -> str:
+        """Return a simple detail URL path; avoids dependency on URLConf in tests."""
+        return f"/products/{self.pk}/"
+
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255)
     parent = models.ForeignKey(
         "self", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
@@ -42,7 +55,15 @@ class Category(models.Model):
 class Customer(models.Model):
     full_name = models.CharField(max_length=255)
     email = models.EmailField(blank=True)
-    phone = models.CharField(max_length=32)
+    phone = models.CharField(
+        max_length=32,
+        validators=[
+            RegexValidator(
+                regex=r"^\+?[0-9\-\s\(\)]{7,20}$",
+                message="Enter a valid phone number.",
+            )
+        ],
+    )
     address = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -73,12 +94,27 @@ class Order(models.Model):
     def total(self) -> Decimal:
         return sum((item.subtotal for item in self.items.all()), Decimal("0.00"))
 
+    def cancel(self) -> None:
+        """Cancel order and restock items once."""
+        if self.status == self.Status.CANCELLED:
+            return
+        if self.status == self.Status.SHIPPED:
+            raise ValidationError("Cannot cancel an order that has been shipped.")
+        with transaction.atomic():
+            # Restock products
+            for item in self.items.select_related("product"):
+                product = item.product
+                product.stock = (product.stock or 0) + item.quantity
+                product.save(update_fields=["stock"]) 
+            self.status = self.Status.CANCELLED
+            self.save(update_fields=["status", "updated_at"]) 
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey("Order", on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey("Product", on_delete=models.PROTECT, related_name="order_items")
     quantity = models.PositiveIntegerField(default=1)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     def __str__(self) -> str:
         return f"{self.product} x{self.quantity}"
@@ -86,3 +122,81 @@ class OrderItem(models.Model):
     @property
     def subtotal(self) -> Decimal:
         return (self.price or Decimal("0.00")) * Decimal(self.quantity)
+
+    def clean(self) -> None:
+        # Ensure sufficient stock
+        if self.product_id and self.quantity:
+            # fetch latest stock
+            product = self.product if hasattr(self, "product") else None
+            if product is None and self.product_id:
+                product = Product.objects.filter(pk=self.product_id).first()
+            if product and product.stock is not None and self.quantity > product.stock:
+                raise ValidationError({"quantity": "Insufficient stock for the requested quantity."})
+
+    def save(self, *args, **kwargs):
+        # Auto-snapshot price from product if not provided
+        if self.price is None and self.product_id:
+            # ensure product is loaded
+            prod = getattr(self, "product", None)
+            if prod is None:
+                prod = Product.objects.get(pk=self.product_id)
+            self.price = prod.price
+        super().save(*args, **kwargs)
+
+
+@receiver(post_save, sender=OrderItem)
+def deduct_stock_on_order_item_create(sender, instance: "OrderItem", created: bool, **kwargs):
+    if not created:
+        return
+    product = instance.product
+    if product and instance.quantity:
+        # do not go negative; assume validation prevented it
+        new_stock = max(0, (product.stock or 0) - instance.quantity)
+        if new_stock != product.stock:
+            product.stock = new_stock
+            product.save(update_fields=["stock"]) 
+
+
+@receiver(pre_save, sender=OrderItem)
+def adjust_stock_on_order_item_update(sender, instance: "OrderItem", **kwargs):
+    if not instance.pk:
+        # handled by post_save(create)
+        return
+    try:
+        prev = OrderItem.objects.select_related("product").get(pk=instance.pk)
+    except OrderItem.DoesNotExist:
+        return
+    # If product changes, return old qty to old product and deduct new qty from new product
+    if prev.product_id != instance.product_id:
+        if prev.product:
+            prev.product.stock = (prev.product.stock or 0) + prev.quantity
+            prev.product.save(update_fields=["stock"]) 
+        if instance.product:
+            # ensure enough stock for new product and quantity
+            if instance.quantity > (instance.product.stock or 0):
+                raise ValidationError({"quantity": "Insufficient stock for the requested quantity."})
+            instance.product.stock = (instance.product.stock or 0) - instance.quantity
+            instance.product.save(update_fields=["stock"]) 
+        return
+    # Same product; adjust by delta
+    delta = int(instance.quantity) - int(prev.quantity)
+    if delta == 0:
+        return
+    if delta > 0:
+        # need to deduct additional quantity
+        if delta > (instance.product.stock or 0):
+            raise ValidationError({"quantity": "Insufficient stock for the requested quantity."})
+        instance.product.stock = (instance.product.stock or 0) - delta
+        instance.product.save(update_fields=["stock"]) 
+    else:
+        # quantity decreased -> return (-delta)
+        instance.product.stock = (instance.product.stock or 0) + (-delta)
+        instance.product.save(update_fields=["stock"]) 
+
+
+@receiver(post_delete, sender=OrderItem)
+def restock_on_order_item_delete(sender, instance: "OrderItem", **kwargs):
+    product = instance.product
+    if product and instance.quantity:
+        product.stock = (product.stock or 0) + instance.quantity
+        product.save(update_fields=["stock"]) 
