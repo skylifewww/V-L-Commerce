@@ -1,0 +1,13 @@
+{% extends "landing/product_landing_page.html" %}
+{% load wagtailcore_tags %}
+{% load static %}
+
+{% block content %}
+<main>
+  {% for block in page.body %}
+    {% if block.block_type != 'hero' or not block.value.use_product_image %}
+      {% include_block block %}
+    {% endif %}
+  {% endfor %}
+</main>
+{% endblock %}

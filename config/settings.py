@@ -70,9 +70,9 @@ else:
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.getenv("POSTGRES_DB", "tikflow"),
-            "USER": os.getenv("POSTGRES_USER", "tikflow"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "tikflow"),
-            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+            "USER": os.getenv("POSTGRES_USER", "postgres"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
+            "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
             "PORT": os.getenv("POSTGRES_PORT", "5432"),
         }
     }
@@ -103,6 +103,12 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Cache control settings
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+# Cache headers
+STATICFILES_MAX_AGE = 60 * 60 * 24 * 365  # 1 year for static files
+MEDIA_MAX_AGE = 60 * 60 * 24 * 30  # 30 days for media files
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

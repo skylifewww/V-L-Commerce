@@ -1,0 +1,181 @@
+{% load static %}
+{% load wagtailcore_tags %}
+{% load wagtailimages_tags %}
+{% load product_tags %}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page.seo_title|default:page.title }}</title>
+  <meta name="description" content="{{ page.search_description }}" />
+  <link rel="canonical" href="{{ request.build_absolute_uri }}" />
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5; }
+    main { max-width: 960px; margin: 0 auto; padding: 16px; }
+    h1, h2 { margin: 0 0 12px; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .hero { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+    .hero .media img { width: 100%; height: auto; border-radius: 8px; }
+    .price { font-size: 28px; font-weight: 700; }
+    .old-price { color: #888; margin-left: 8px; }
+    .btn { display: inline-block; padding: 10px 16px; border-radius: 999px; background:#ff1717; color:#fff; text-decoration: none; }
+    form .field { margin-bottom: 12px; }
+    form label { display:block; font-weight: 600; margin-bottom: 4px; }
+    input, textarea, select, button { font: inherit; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
+    button[type=submit] { padding: 10px 16px; border-radius: 999px; border: 2px solid #2971f5; background: #2971f5; color: #fff; }
+    @media (min-width: 768px) {
+      .hero { grid-template-columns: 6fr 6fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    {% for block in page.body %}
+      {% if block.block_type == 'hero' %}
+        <section id="hero" class="hero">
+          <div class="media">
+  {% if block.value.image %}
+    {% image block.value.image width-1200 alt=block.value.title|default:product.name loading="lazy" class="hero-img" %}
+  {% elif block.value.use_product_image and product and product.image %}
+    <img src="{{ product.image.url }}" alt="{{ block.value.title|default:product.name|default:'Product image' }}" loading="lazy" itemprop="image" />
+  {% else %}
+    <div class="placeholder">No image available</div>
+  {% endif %}
+</div>
+          <div class="content">
+            <header>
+              <h1>{{ block.value.title|default:product.name }}</h1>
+              {% if block.value.subtitle %}<p>{{ block.value.subtitle }}</p>{% endif %}
+            </header>
+            <div class="pricing">
+              {% with p=None %}
+                {% if block.value.price %}
+                  {% with p=block.value.price %}{% endwith %}
+                {% elif block.value.use_product_price and product %}
+                  {% with p=product.price %}{% endwith %}
+                {% endif %}
+                {% if p %}<strong class="price">{{ p }}</strong>{% endif %}
+              {% endwith %}
+              {% if block.value.old_price %}<s class="old-price">{{ block.value.old_price }}</s>{% endif %}
+            </div>
+            {% if block.value.cta_anchor %}
+              <p><a class="btn" href="{{ block.value.cta_anchor }}">{{ block.value.cta_text }}</a></p>
+            {% endif %}
+          </div>
+        </section>
+
+      {% elif block.block_type == 'gallery' %}
+        <section id="gallery">
+          <div class="gallery-grid">
+            {% for img in block.value.images %}
+              {% image img width-800 loading="lazy" %}
+            {% endfor %}
+          </div>
+        </section>
+
+      {% elif block.block_type == 'video' %}
+        <section id="video">
+          <div class="video-wrapper" style="height: {{ block.value.height }}px;">
+            <iframe width="100%" height="100%" src="https://www.youtube.com/embed/{{ block.value.youtube_id|youtube_id }}?rel=0&modestbranding=1&playsinline=1&origin={{ request.scheme }}://{{ request.get_host }}&widget_referrer={{ request.build_absolute_uri|urlencode }}" title="YouTube video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>
+          </div>
+        </section>
+
+      {% elif block.block_type == 'text' %}
+        <section class="text-section">
+          {{ block.value.html|richtext }}
+        </section>
+
+      {% elif block.block_type == 'benefits' %}
+        <section id="benefits">
+          {% if block.value.title %}<h2>{{ block.value.title }}</h2>{% endif %}
+          <ul>
+            {% for it in block.value.items %}
+              <li>
+                {% if it.icon %}{% image it.icon width-32 loading="lazy" %}{% endif %}
+                <strong>{{ it.title }}</strong>
+                <p>{{ it.description }}</p>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+
+      {% elif block.block_type == 'steps' %}
+        <section id="steps">
+          {% if block.value.title %}<h2>{{ block.value.title }}</h2>{% endif %}
+          <ol>
+            {% for st in block.value.items %}
+              <li>
+                <strong>{{ st.title }}</strong>
+                <p>{{ st.description }}</p>
+              </li>
+            {% endfor %}
+          </ol>
+        </section>
+
+      {% elif block.block_type == 'form' %}
+        <section id="form">
+          {% if block.value.title %}<h2>{{ block.value.title }}</h2>{% endif %}
+          {% if block.value.subtitle %}<p>{{ block.value.subtitle }}</p>{% endif %}
+          <form method="post">
+            {% csrf_token %}
+            <div class="field">
+              <label for="full_name">ФІО</label>
+              <input id="full_name" type="text" name="full_name" required />
+            </div>
+            <div class="field">
+              <label for="country">Країна</label>
+              <select id="country" name="country">
+                <option value="UA" selected>Ukraine</option>
+                <option value="PL">Poland</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="phone">Телефон</label>
+              <input id="phone" type="tel" name="phone" required />
+              <small id="phone-hint">Приклад: +380 XX XXX-XX-XX або +48 XXX-XXX-XXX</small>
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" type="email" name="email" />
+            </div>
+            <div class="field">
+              <label for="quantity">Кількість</label>
+              <input id="quantity" type="number" min="1" step="1" name="quantity" value="1" />
+            </div>
+            <div class="field">
+              <label for="comment">Коментар</label>
+              <textarea id="comment" name="comment" rows="3"></textarea>
+            </div>
+            <!-- CRM hidden fields (external compatibility) -->
+            <input type="hidden" name="price" value="{% if product %}{{ product.price }}{% endif %}">
+            <input type="hidden" name="id" value="{% if product %}{{ product.id }}{% endif %}">
+            <input type="hidden" name="country" value="UA">
+            <input type="hidden" name="office" value="6">
+            <input type="hidden" name="user_ip" value="">
+            <input type="hidden" name="site" value="{{ request.build_absolute_uri }}">
+
+            <button type="submit">{{ block.value.submit_text }}</button>
+          </form>
+          <script>
+          (function(){
+            // Fetch IP
+            fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{
+              document.querySelectorAll('input[name="user_ip"]').forEach(function(i){ i.value = d.ip; });
+            }).catch(()=>{});
+          })();
+          </script>
+        </section>
+      {% endif %}
+    {% endfor %}
+  </main>
+</body>
+</html>
+<!-- DEBUG: 
+block.value.use_product_image = {{ block.value.use_product_image }}
+block.value.image = {{ block.value.image|yesno:"exists,missing" }}
+product = {{ product|yesno:"exists,missing" }}
+product.image = {{ product.image|yesno:"exists,missing" }}
+-->

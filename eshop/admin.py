@@ -41,7 +41,7 @@ class ProductAdmin(SimpleHistoryAdmin):
 
     action_form = BulkAdjustForm
 
-    @admin.action(description="Update product prices by %")
+    @admin.action(description="Update product prices by %%")
     def update_product_prices(self, request, queryset):
         try:
             percent = request.POST.get("percent")

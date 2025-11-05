@@ -95,7 +95,8 @@ PY
 ```bash
 source .venv/bin/activate
 make docker-up
-python3 manage.py runserver
+make migrate
+make run
 # Ctrl+C to stop
 git status
 make down

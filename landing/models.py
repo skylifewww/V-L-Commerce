@@ -3,14 +3,16 @@ from django import forms
 from django.utils.functional import cached_property
 from django.shortcuts import redirect
 from django.core.cache import cache
+from django.core.mail import mail_admins
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils.text import slugify
 from django.conf import settings
-
-from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.fields import StreamField
 from wagtail.admin.panels import FieldPanel
+from wagtail.admin.forms import WagtailAdminPageForm
 from wagtail import blocks
+from wagtail.blocks import RichTextBlock
 from wagtail.images.blocks import ImageChooserBlock
 
 from eshop.models import Product, Category, Customer, Order, OrderItem
@@ -57,6 +59,86 @@ class TestimonialsBlock(blocks.StructBlock):
         icon = "openquote"
         label = "Testimonials"
 
+
+class HeroBlock(blocks.StructBlock):
+    title = blocks.CharBlock(required=True)
+    subtitle = blocks.TextBlock(required=False)
+    price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
+    old_price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
+    image = ImageChooserBlock(required=False)
+    cta_text = blocks.CharBlock(required=False, default="Замовити зараз")
+    cta_anchor = blocks.CharBlock(required=False, help_text="Якорь ссылки, например #form")
+    use_product_image = blocks.BooleanBlock(required=False, default=True, help_text="Если задан product у страницы — использовать его изображение")
+    use_product_price = blocks.BooleanBlock(required=False, default=True, help_text="Если задан product у страницы — использовать его цену")
+
+    class Meta:
+        icon = "pick"
+        label = "Hero"
+
+
+class GalleryBlock(blocks.StructBlock):
+    images = blocks.ListBlock(ImageChooserBlock())
+
+    class Meta:
+        icon = "image"
+        label = "Gallery"
+
+
+class VideoBlock(blocks.StructBlock):
+    youtube_id = blocks.CharBlock(required=True, help_text="YouTube ID, например wKj3LlQ89IA")
+    height = blocks.IntegerBlock(required=False, default=540)
+
+    class Meta:
+        icon = "media"
+        label = "YouTube Video"
+
+
+class TextSectionBlock(blocks.StructBlock):
+    html = RichTextBlock(features=["h2", "h3", "bold", "italic", "link", "ol", "ul", "hr"]) 
+
+    class Meta:
+        icon = "doc-full"
+        label = "Text Section"
+
+
+class BenefitItemBlock(blocks.StructBlock):
+    title = blocks.CharBlock()
+    description = blocks.TextBlock()
+    icon = ImageChooserBlock(required=False)
+
+
+class BenefitsBlock(blocks.StructBlock):
+    title = blocks.CharBlock(required=False, default="Головні переваги")
+    items = blocks.ListBlock(BenefitItemBlock())
+
+    class Meta:
+        icon = "tick"
+        label = "Benefits"
+
+
+class StepItemBlock(blocks.StructBlock):
+    title = blocks.CharBlock()
+    description = blocks.TextBlock()
+
+
+class StepsBlock(blocks.StructBlock):
+    title = blocks.CharBlock(required=False, default="Як замовити?")
+    items = blocks.ListBlock(StepItemBlock())
+
+    class Meta:
+        icon = "list-ol"
+        label = "Steps"
+
+
+class FormBlock(blocks.StructBlock):
+    title = blocks.CharBlock(required=False, default="ЗАЛИШИТИ ЗАЯВКУ")
+    subtitle = blocks.TextBlock(required=False)
+    submit_text = blocks.CharBlock(required=False, default="Залишити заявку")
+
+    class Meta:
+        icon = "form"
+        label = "Order Form"
+
 class HomePage(Page):
     icon = "home"
     body = StreamField(
@@ -72,7 +154,11 @@ class HomePage(Page):
 
     content_panels = Page.content_panels + [FieldPanel("body")]
 
-    subpage_types = ["landing.ProductListingPage", "landing.ProductDetailPage"]
+    subpage_types = [
+        "landing.ProductLandingPage",
+        "landing.ProductListingPage",
+        "landing.ProductDetailPage",
+    ]
 
     def get_context(self, request):
         ctx = super().get_context(request)
@@ -138,11 +224,29 @@ class ProductListingPage(Page):
         return ctx
 
 class OrderRequestForm(forms.Form):
+    COUNTRY_CHOICES = (
+        ("UA", "Ukraine"),
+        ("PL", "Poland"),
+    )
     full_name = forms.CharField(max_length=255)
     phone = forms.CharField(max_length=32)
     email = forms.EmailField(required=False)
     quantity = forms.IntegerField(min_value=1, initial=1)
     comment = forms.CharField(widget=forms.Textarea, required=False)
+    country = forms.ChoiceField(choices=COUNTRY_CHOICES, initial="UA")
+
+    def clean_phone(self):
+        import re
+        phone = self.cleaned_data.get("phone", "").strip()
+        country = self.cleaned_data.get("country", "UA")
+        patterns = {
+            "UA": r"^\+?380\s?\(?\d{2}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}$",
+            "PL": r"^\+?48\s?\d{3}[\s-]?\d{3}[\s-]?\d{3}$",
+        }
+        pat = patterns.get(country)
+        if pat and not re.match(pat, phone):
+            raise forms.ValidationError("Enter a valid phone for selected country.")
+        return phone
 
 class ProductDetailPage(Page):
     icon = "tag"
@@ -204,3 +308,107 @@ class ProductDetailPage(Page):
             return self.render(request, context_overrides=ctx)
         return super().serve(request)
 
+
+class ProductLandingPage(Page):
+    """Template-driven product landing page editors can fill."""
+
+    icon = "form"
+    template = "landing/product_landing_page.html"  # Основной шаблон
+    
+    product = models.ForeignKey("eshop.Product", on_delete=models.PROTECT, related_name="landing_pages", null=True, blank=True)
+    success_page = models.ForeignKey("landing.OrderSuccessPage", on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Динамический выбор шаблона
+    def get_template(self, request):
+        if self.product:  # Если привязан товар
+            return "landing/product_landing_page.html" 
+        return "landing/general_landing_page.html"  # Шаблон без привязки к товару
+    
+    content_panels = Page.content_panels + [
+        FieldPanel("product"),
+        FieldPanel("success_page"),
+        FieldPanel("body")
+    ]
+
+    # Use Wagtail's default page form
+    base_form_class = WagtailAdminPageForm
+    
+    class Meta:
+        verbose_name = "Product Landing Page"
+        verbose_name_plural = "Product Landing Pages"
+    body = StreamField(
+        [
+            ("hero", HeroBlock()),
+            ("gallery", GalleryBlock()),
+            ("video", VideoBlock()),
+            ("text", TextSectionBlock()),
+            ("benefits", BenefitsBlock()),
+            ("steps", StepsBlock()),
+            ("form", FormBlock()),
+        ],
+        use_json_field=True,
+        blank=True,
+    )
+
+    content_panels = Page.content_panels + [FieldPanel("product"), FieldPanel("success_page"), FieldPanel("body")]
+
+    parent_page_types = ["landing.HomePage", "landing.ProductListingPage"]
+    subpage_types = []
+
+    @cached_property
+    def product_obj(self) -> Product | None:
+        if not self.product_id:
+            return None
+        return Product.objects.select_related("category").filter(pk=self.product_id).first()
+
+    def get_context(self, request):
+        ctx = super().get_context(request)
+        ctx["site_name"] = getattr(settings, "WAGTAIL_SITE_NAME", "")
+        # Всегда добавляем product в контекст (даже если None)
+        ctx["product"] = self.product_obj
+        # Simple order form (same fields as ProductDetailPage)
+        ctx["order_form"] = OrderRequestForm()
+        return ctx
+
+    def serve(self, request):
+        if request.method == "POST":
+            form = OrderRequestForm(request.POST)
+            if form.is_valid() and self.product_obj:
+                customer, _ = Customer.objects.get_or_create(
+                    full_name=form.cleaned_data["full_name"],
+                    phone=form.cleaned_data["phone"],
+                    defaults={"email": form.cleaned_data.get("email", "")},
+                )
+                order = Order.objects.create(customer=customer)
+                OrderItem.objects.create(
+                    order=order,
+                    product=self.product_obj,
+                    quantity=form.cleaned_data.get("quantity", 1),
+                )
+                try:
+                    mail_admins(
+                        subject=f"New order #{order.id}",
+                        message=f"Product: {self.product_obj.name}\nQty: {form.cleaned_data.get('quantity', 1)}\nCustomer: {customer.full_name} / {customer.phone}",
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+                if self.success_page_id:
+                    return redirect(self.success_page.url)
+                return redirect(self.url)
+            ctx = self.get_context(request)
+            ctx["order_form"] = form
+            return self.render(request, context_overrides=ctx)
+        return super().serve(request)
+
+
+class OrderSuccessPage(Page):
+    icon = "tick"  # Changed to match Wagtail's icon set
+    template = "landing/order_success_page.html"
+    parent_page_types = ["landing.HomePage", "landing.ProductListingPage", "landing.ProductLandingPage"]
+    subpage_types = []
+    
+    # Ensure it's available in the add page menu
+    class Meta:
+        verbose_name = "Order Success Page"
+        verbose_name_plural = "Order Success Pages"
