@@ -93,6 +93,15 @@ class VideoBlock(blocks.StructBlock):
         label = "YouTube Video"
 
 
+class AnimatedImageBlock(blocks.StructBlock):
+    image = ImageChooserBlock(required=True, help_text="Загрузите GIF для анимации")
+    alt = blocks.CharBlock(required=False, help_text="Alt-текст (опционально)")
+
+    class Meta:
+        icon = "image"
+        label = "Animated Image (GIF)"
+
+
 class TextSectionBlock(blocks.StructBlock):
     html = RichTextBlock(features=["h2", "h3", "bold", "italic", "link", "ol", "ul", "hr"]) 
 
@@ -341,6 +350,7 @@ class ProductLandingPage(Page):
             ("hero", HeroBlock()),
             ("gallery", GalleryBlock()),
             ("video", VideoBlock()),
+            ("animated", AnimatedImageBlock()),
             ("text", TextSectionBlock()),
             ("benefits", BenefitsBlock()),
             ("steps", StepsBlock()),

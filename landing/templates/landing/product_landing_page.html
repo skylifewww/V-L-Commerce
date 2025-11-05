@@ -83,6 +83,13 @@
           </div>
         </section>
 
+      {% elif block.block_type == 'animated' %}
+        <section id="animated-image">
+          {% if block.value.image %}
+            <img src="{{ block.value.image.file.url }}" alt="{{ block.value.alt|default:'' }}" style="max-width:100%;height:auto;border-radius:8px;" loading="lazy" />
+          {% endif %}
+        </section>
+
       {% elif block.block_type == 'text' %}
         <section class="text-section">
           {{ block.value.html|richtext }}
