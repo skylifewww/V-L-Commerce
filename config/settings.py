@@ -48,6 +48,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+    "analytics.middleware.UTMMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
@@ -115,6 +116,22 @@ CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 CELERY_TASK_TIME_LIMIT = 60
 CELERY_TASK_SOFT_TIME_LIMIT = 45
+CELERY_BEAT_SCHEDULE = {
+    "daily_tiktok_sync": {
+        "task": "analytics.tasks.fetch_tiktok_metrics",
+        "schedule": 60 * 60 * 24,
+        "args": [os.getenv("TIKTOK_ADVERTISER_ID", "")],
+    },
+    "conversion_drop_alert": {
+        "task": "analytics.tasks.alert_on_conversion_drop",
+        "schedule": 60 * 60 * 24,
+    },
+    "kpi_breach_alert": {
+        "task": "analytics.tasks.alert_on_kpi_breach",
+        "schedule": 60 * 60 * 24,
+    },
+}
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # Eshop settings
 LOW_STOCK_THRESHOLD = int(os.getenv("LOW_STOCK_THRESHOLD", "5"))
@@ -122,3 +139,10 @@ LOW_STOCK_THRESHOLD = int(os.getenv("LOW_STOCK_THRESHOLD", "5"))
 # Telegram notifications for new orders
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+# TikTok credentials
+TIKTOK_ACCESS_TOKEN = os.getenv("TIKTOK_ACCESS_TOKEN", "")
+TIKTOK_PIXEL_CODE = os.getenv("TIKTOK_PIXEL_CODE", "")
+
+# Currency for dashboard formatting
+CURRENCY_CODE = os.getenv("CURRENCY_CODE", "USD")

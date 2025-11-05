@@ -11,6 +11,7 @@ urlpatterns = [
     path("cms/", include(wagtailadmin_urls)),
     path("docs/", include(wagtaildocs_urls)),
     path("eshop/", include("eshop.urls", namespace="eshop")),
+    path("analytics/", include("analytics.urls", namespace="analytics")),
     path("", include(wagtail_urls)),
 ]
 

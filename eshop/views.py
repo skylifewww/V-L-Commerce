@@ -11,6 +11,8 @@ from django.db.models import Q
 import json
 from django.core.exceptions import ValidationError
 import re
+from analytics.models import TikTokCampaign, Conversion
+from analytics.tiktok_api import TikTokAPI
 
 from .models import Product, Category, Order, OrderItem, Customer
 from .forms import OrderForm, QuickOrderForm, CustomerForm, AnyJSONField
@@ -120,6 +122,34 @@ class OrderCreateView(FormView):
                 oi = OrderItem(order=order, product=product, quantity=qty)
                 oi.full_clean()
                 oi.save()
+
+            # Link order to campaign via session and record conversion
+            campaign = None
+            cid = self.request.session.get("campaign_id")
+            if cid:
+                campaign = TikTokCampaign.objects.filter(id=cid).first()
+            source_label = None
+            if campaign:
+                source_label = campaign.utm_campaign or campaign.utm_source or campaign.name
+            order.tiktok_source = source_label or order.tiktok_source
+            order.conversion_value = order.total
+            order.save(update_fields=["tiktok_source", "conversion_value", "updated_at"]) 
+            Conversion.objects.get_or_create(
+                order=order,
+                defaults={"campaign": campaign, "conversion_value": order.total},
+            )
+
+            # Optionally send conversion event to TikTok
+            try:
+                api = TikTokAPI()
+                props = {
+                    "value": float(order.total),
+                    "currency": "USD",
+                    "order_id": str(order.uid),
+                }
+                api.send_conversion("CompletePayment", props)
+            except Exception:
+                pass
 
         messages.success(self.request, "Order created successfully.")
         return redirect("eshop:order_detail", order_id=order.uid)
@@ -309,6 +339,31 @@ class OrderCreateView(FormView):
                         oi = OrderItem(order=order, product=it['product'], quantity=it['quantity'])
                         oi.full_clean()
                         oi.save()
+                    # Link to campaign and create conversion
+                    campaign = None
+                    cid = request.session.get('campaign_id')
+                    if cid:
+                        campaign = TikTokCampaign.objects.filter(id=cid).first()
+                    source_label = None
+                    if campaign:
+                        source_label = campaign.utm_campaign or campaign.utm_source or campaign.name
+                    order.tiktok_source = source_label or order.tiktok_source
+                    order.conversion_value = order.total
+                    order.save(update_fields=["tiktok_source", "conversion_value", "updated_at"]) 
+                    Conversion.objects.get_or_create(
+                        order=order,
+                        defaults={"campaign": campaign, "conversion_value": order.total},
+                    )
+                    try:
+                        api = TikTokAPI()
+                        props = {
+                            'value': float(order.total),
+                            'currency': 'USD',
+                            'order_id': str(order.uid),
+                        }
+                        api.send_conversion('CompletePayment', props)
+                    except Exception:
+                        pass
                 messages.success(request, "Order created successfully.")
                 return redirect('eshop:order_detail', order_id=order.uid)
         # Fall back to default form handling

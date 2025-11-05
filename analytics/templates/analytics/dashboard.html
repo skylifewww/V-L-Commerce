@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Analytics Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; background: #0f172a; color: #e2e8f0; }
+    h1, h2 { margin: 8px 0 16px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 1024px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; }
+    .muted { color: #94a3b8; font-size: 12px; }
+    .heatmap { display: grid; grid-template-columns: repeat(14, 18px); gap: 4px; }
+    .cell { width: 18px; height: 18px; border-radius: 4px; background: #1f2937; }
+  </style>
+</head>
+<body>
+  {% if tiktok_pixel_code %}
+    <!-- TikTok Pixel Code injected from settings -->
+    <script>
+      (function(){
+        try {
+          var s = document.createElement('script');
+          s.async = true; s.defer = true;
+          s.src = 'https://analytics.tiktok.com/i18n/pixel/events.js?sdkid={{ tiktok_pixel_code|escapejs }}&lib=ttq';
+          var first = document.getElementsByTagName('script')[0]; first.parentNode.insertBefore(s, first);
+          window.ttq = window.ttq || { track: function(){}, identify: function(){}, page: function(){}, load: function(){}, instances: [] };
+        } catch(e) {}
+      })();
+    </script>
+  {% else %}
+    <div class="card">
+      <strong>Нет TIKTOK_PIXEL_CODE</strong>
+      <div class="muted">Добавьте переменную окружения TIKTOK_PIXEL_CODE, чтобы активировать Events API (в settings уже подключено).</div>
+    </div>
+  {% endif %}
+
+  <h1>Дашборд аналитики</h1>
+  <form method="get" class="card" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+    <div>
+      <label for="start" class="muted">Начало</label><br/>
+      <input type="date" id="start" name="start" value="{{ filters.start }}" style="background:#0b1220;border:1px solid #334155;border-radius:8px;color:#e2e8f0;padding:6px 10px;">
+    </div>
+    <div>
+      <label for="end" class="muted">Конец</label><br/>
+      <input type="date" id="end" name="end" value="{{ filters.end }}" style="background:#0b1220;border:1px solid #334155;border-radius:8px;color:#e2e8f0;padding:6px 10px;">
+    </div>
+    <div>
+      <label for="campaign" class="muted">Кампания (поиск)</label><br/>
+      <input type="text" id="campaign" name="campaign" placeholder="Название кампании" value="{{ filters.campaign }}" style="background:#0b1220;border:1px solid #334155;border-radius:8px;color:#e2e8f0;padding:6px 10px;min-width:240px;">
+    </div>
+    <div>
+      <button type="submit" style="background:#2563eb;border:0;border-radius:8px;color:#fff;padding:8px 14px;cursor:pointer;">Применить</button>
+    </div>
+  </form>
+
+  <div class="grid">
+    <div class="card">
+      <h2>KPIs</h2>
+      <div class="muted">За период {{ filters.start }} — {{ filters.end }}{% if filters.campaign %}, фильтр по кампаниям: "{{ filters.campaign }}"{% endif %}</div>
+      <ul>
+        <li>Сессии: <strong>{{ kpis.sessions }}</strong></li>
+        <li>Конверсии: <strong>{{ kpis.conversions }}</strong></li>
+        <li>Выручка: <strong id="kpiRevenue"></strong></li>
+        <li>Расход: <strong id="kpiSpend"></strong></li>
+        <li>ROI: <strong id="kpiROI"></strong></li>
+        <li>CAC: <strong id="kpiCAC"></strong></li>
+      </ul>
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+        <a id="exportCsv" class="muted" href="#">Экспорт CSV</a>
+      </div>
+    </div>
+  <div class="grid">
+    <div class="card">
+      <h2>Конверсии по кампаниям (30 дней)</h2>
+      <canvas id="barByCampaign"></canvas>
+      <div style="margin-top:8px;"><button id="dlBar" style="background:#334155;color:#e2e8f0;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;">Скачать PNG</button></div>
+    </div>
+    <div class="card">
+      <h2>Конверсия по дням/кампаниям</h2>
+      <canvas id="lineByDayCampaign"></canvas>
+      <div style="margin-top:8px;"><button id="dlLine" style="background:#334155;color:#e2e8f0;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;">Скачать PNG</button></div>
+    </div>
+    <div class="card">
+      <h2>Теплокарта эффективности (дни × кампании)</h2>
+      <div id="heatmap" class="heatmap"></div>
+      <div class="muted">Интенсивность = количество конверсий</div>
+      <div style="margin-top:8px;"><button id="dlHeat" style="background:#334155;color:#e2e8f0;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;">Скачать PNG</button></div>
+    </div>
+    <div class="card">
+      <h2>Сравнение UTM-источников (сессии)</h2>
+      <canvas id="pieUTM"></canvas>
+      <div style="margin-top:8px;"><button id="dlPie" style="background:#334155;color:#e2e8f0;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;">Скачать PNG</button></div>
+    </div>
+  </div>
+
+  {{ by_campaign|json_script:"byCampaignData" }}
+  {{ by_day_campaign|json_script:"byDayCampaignData" }}
+  {{ sessions_by_utm|json_script:"sessionsByUtmData" }}
+  {{ kpis|json_script:"kpisData" }}
+  {{ currency_code|json_script:"currencyData" }}
+
+  <script>
+    // Data embedded safely via json_script tags below
+    const byCampaign = JSON.parse(document.getElementById('byCampaignData').textContent);
+    const byDayCampaign = JSON.parse(document.getElementById('byDayCampaignData').textContent);
+    const sessionsByUtm = JSON.parse(document.getElementById('sessionsByUtmData').textContent);
+
+    // Helpers
+    const currencyCode = JSON.parse(document.getElementById('currencyData').textContent || '"USD"');
+    function fmtMoney(v){
+      try { return new Intl.NumberFormat(undefined, { style:'currency', currency: currencyCode, maximumFractionDigits: 2 }).format(Number(v||0)); } catch(e) { return `${currencyCode} ${Number(v||0).toFixed(2)}`; }
+    }
+    function fmtPercent(v){ if(v === null || v === undefined) return '—'; return (Number(v)*100).toFixed(1)+'%'; }
+
+    // KPIs formatting
+    const kpis = JSON.parse(document.getElementById('kpisData').textContent);
+    document.getElementById('kpiRevenue').innerText = fmtMoney(kpis.revenue);
+    document.getElementById('kpiSpend').innerText = fmtMoney(kpis.spend);
+    document.getElementById('kpiROI').innerText = (kpis.roi === null || kpis.roi === undefined) ? '—' : (kpis.roi.toFixed(2));
+    document.getElementById('kpiCAC').innerText = (kpis.cac === null || kpis.cac === undefined) ? '—' : fmtMoney(kpis.cac);
+
+    // Export CSV link with current filters
+    const params = new URLSearchParams(window.location.search);
+    document.getElementById('exportCsv').href = `/analytics/dashboard/export.csv?${params.toString()}`;
+
+    // Bar: conversions by campaign
+    const barCtx = document.getElementById('barByCampaign').getContext('2d');
+    const barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: byCampaign.map(i => i.campaign__name || '—'),
+        datasets: [{
+          label: 'Conversions',
+          data: byCampaign.map(i => i.conversions || 0),
+          backgroundColor: 'rgba(59,130,246,0.6)'
+        },{
+          label: 'Revenue',
+          data: byCampaign.map(i => Number(i.revenue || 0)),
+          backgroundColor: 'rgba(34,197,94,0.6)'
+        },{
+          label: 'Spend',
+          data: byCampaign.map(i => Number(i.spend || 0)),
+          backgroundColor: 'rgba(239,68,68,0.6)'
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#cbd5e1' } } }, scales: { x: { ticks: { color: '#cbd5e1' } }, y: { ticks: { color: '#cbd5e1' } } } }
+    });
+
+    // Line: conversions per day per campaign
+    const days = [...new Set(byDayCampaign.map(i => i.day))].sort();
+    const campaigns = [...new Set(byDayCampaign.map(i => i.campaign__name || '—'))];
+    const colors = ['#60a5fa','#f472b6','#f59e0b','#10b981','#a78bfa','#f87171','#22d3ee','#34d399'];
+    const datasets = campaigns.map((c, idx) => ({
+      label: c,
+      data: days.map(d => {
+        const row = byDayCampaign.find(x => x.day === d && (x.campaign__name || '—') === c);
+        return row ? row.cnt : 0;
+      }),
+      borderColor: colors[idx % colors.length],
+      backgroundColor: colors[idx % colors.length],
+      tension: 0.3
+    }));
+    const lineCtx = document.getElementById('lineByDayCampaign').getContext('2d');
+    const lineChart = new Chart(lineCtx, { type: 'line', data: { labels: days, datasets }, options: { plugins: { legend: { labels: { color: '#cbd5e1' } } }, scales: { x: { ticks: { color: '#cbd5e1' } }, y: { ticks: { color: '#cbd5e1' } } } } });
+
+    // Heatmap (simple squares)
+    const heatContainer = document.getElementById('heatmap');
+    const maxCnt = Math.max(1, ...byDayCampaign.map(i => i.cnt || 0));
+    const totalCells = 14 * Math.max(1, campaigns.length);
+    // Build a matrix [campaigns x days]
+    const mat = campaigns.map(c => days.map(d => {
+      const row = byDayCampaign.find(x => x.day === d && (x.campaign__name || '—') === c);
+      return row ? row.cnt : 0;
+    }));
+    mat.forEach((row) => {
+      row.forEach((val) => {
+        const cell = document.createElement('div');
+        const intensity = val / maxCnt;
+        const channel = Math.floor(255 - intensity * 200);
+        cell.className = 'cell';
+        cell.style.background = `rgb(${channel}, ${50 + Math.floor(intensity*150)}, ${75})`;
+        heatContainer.appendChild(cell);
+      })
+    });
+
+    // Pie: UTM sources by sessions
+    const pieCtx = document.getElementById('pieUTM').getContext('2d');
+    const pieChart = new Chart(pieCtx, {
+      type: 'pie',
+      data: {
+        labels: sessionsByUtm.map(i => i.campaign__utm_source || '—'),
+        datasets: [{
+          data: sessionsByUtm.map(i => i.cnt || 0),
+          backgroundColor: ['#60a5fa','#f472b6','#f59e0b','#10b981','#a78bfa','#f87171','#22d3ee','#34d399']
+        }]
+      },
+      options: { plugins: { legend: { labels: { color: '#cbd5e1' } } } }
+    });
+
+    // PNG downloads
+    function downloadCanvas(chart, name){
+      const a = document.createElement('a');
+      a.href = chart.toBase64Image();
+      a.download = name;
+      a.click();
+    }
+    document.getElementById('dlBar').onclick = () => downloadCanvas(barChart, 'conversions_by_campaign.png');
+    document.getElementById('dlLine').onclick = () => downloadCanvas(lineChart, 'conversions_by_day_campaign.png');
+    document.getElementById('dlPie').onclick = () => downloadCanvas(pieChart, 'utm_sources.png');
+    document.getElementById('dlHeat').onclick = () => {
+      // Render heatmap grid into canvas for download
+      const grid = document.getElementById('heatmap');
+      const w = grid.clientWidth, h = grid.clientHeight;
+      const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d');
+      // Draw cells
+      const cells = grid.querySelectorAll('.cell');
+      const cols = 14; const size = 18; const gap = 4; const rows = Math.ceil(cells.length / cols);
+      cells.forEach((cell, idx) => {
+        const r = Math.floor(idx / cols), col = idx % cols;
+        const x = col * (size + gap), y = r * (size + gap);
+        ctx.fillStyle = getComputedStyle(cell).backgroundColor; ctx.fillRect(x, y, size, size);
+      });
+      const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'heatmap.png'; a.click();
+    };
+  </script>
+</body>
+</html>

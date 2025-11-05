@@ -88,6 +88,9 @@ class Order(models.Model):
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.NEW)
     shipping_address = models.TextField(blank=True)
     payment_reference = models.CharField(max_length=255, blank=True)
+    # Analytics compatibility fields
+    tiktok_source = models.CharField(max_length=128, blank=True)
+    conversion_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
