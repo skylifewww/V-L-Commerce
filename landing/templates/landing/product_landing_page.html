@@ -10,28 +10,133 @@
   <title>{{ page.seo_title|default:page.title }}</title>
   <meta name="description" content="{{ page.search_description }}" />
   <link rel="canonical" href="{{ request.build_absolute_uri }}" />
+  {% if font_family and font_family != 'system' %}
+    {% if font_family == 'inter' %}
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {% elif font_family == 'roboto' %}
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    {% elif font_family == 'montserrat' %}
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {% endif %}
+  {% endif %}
   <style>
+    :root{
+      --heading-w: {{ heading_weight|default:'700' }};
+      --heading-lh: {{ heading_line_height|default:1.25 }};
+      --title-w: {{ title_weight|default:'400' }};
+      --title-lh: {{ title_line_height|default:1.30 }};
+      --body-w: {{ body_weight|default:'300' }};
+      --body-lh: {{ body_line_height|default:1.30 }};
+    }
     :root { color-scheme: light dark; }
     body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5; }
+    body.font-inter { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    body.font-roboto { font-family: 'Roboto', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    body.font-montserrat { font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    html { scroll-behavior: smooth; }
+    body.light { --page-bg:#ffffff; background:#ffffff; color:#111111; }
+    body.dark { --page-bg:#0b0b0b; background:#0b0b0b; color:#eaeaea; }
     main { max-width: 960px; margin: 0 auto; padding: 16px; }
     h1, h2 { margin: 0 0 12px; }
+    h1, h2, h3, p, label, strong, .promo .p-text, .benefits strong, .hero header p { font-weight: var(--body-w); line-height: var(--body-lh); }
+    section h2 { text-align:center; font-size:32px; font-weight: var(--heading-w); line-height: var(--heading-lh); }
+    section strong { font-size:22px; font-weight: var(--title-w); line-height: var(--title-lh); }
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
-    .hero { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+    .hero { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: start; }
     .hero .media img { width: 100%; height: auto; border-radius: 8px; }
+    .hero header h1 { font-weight: var(--heading-w); line-height: var(--heading-lh); margin-bottom: 16px; }
+    .hero header p { color:#555; margin-top: 6px; }
+    .pricing { display:flex; align-items:center; gap:12px; margin: 8px 0 16px; }
     .price { font-size: 28px; font-weight: 700; }
-    .old-price { color: #888; margin-left: 8px; }
-    .btn { display: inline-block; padding: 10px 16px; border-radius: 999px; background:#ff1717; color:#fff; text-decoration: none; }
-    form .field { margin-bottom: 12px; }
-    form label { display:block; font-weight: 600; margin-bottom: 4px; }
+    .old-price { color: #888; text-decoration: line-through; opacity:.7; }
+    .btn { display: inline-block; padding: 12px 20px; border-radius: 999px; background:#ff2a19; color:#fff; text-decoration: none; font-weight:600; }
+
+    section { margin: 40px 0; }
+
+    /* Animated image alignment helpers */
+    .animated { display:grid; }
+    .animated.align-left { justify-items:start; }
+    .animated.align-center { justify-items:center; }
+    .animated.align-right { justify-items:end; }
+
+    .promo { display:grid; grid-template-columns: 1fr; gap:24px; align-items:center; }
+    .promo h2 { text-align:center; }
+    .promo .p-text { color:#444; }
+    .promo .p-cta { display:flex; align-items:center; gap:14px; justify-content:center; }
+    .promo .p-cta .price { font-size:24px; font-weight:800; }
+    .promo .p-cta .old-price { margin-left:0; }
+
+    #benefits { max-width: 660px; margin: 40px auto; padding: 0 24px; }
+    #benefits h2 { text-align:center; margin-bottom: 28px; }
+    .benefits { list-style:none; padding:0; margin:24px 0 0; display:flex; flex-direction:column; gap:28px; }
+    .benefits li { display:grid; grid-template-columns: 72px 1fr; gap:16px; align-items:flex-start; }
+    .benefits strong { font-size:22px; font-weight: var(--title-w); line-height: var(--title-lh); }
+    .benefits p { margin:6px 0 0; color:#555; }
+    .benefit-icon { width:48px; height:48px; color:#2f5eff; }
+    .benefit-icon img { width:48px; height:48px; object-fit:contain; }
+
+    #steps h2 { text-align:center; margin-bottom: 28px; }
+    .steps { list-style:none; counter-reset: step; margin:0; padding:8px 0; display:block; position:relative; overflow:hidden; }
+    .steps li { position:relative; display:grid; grid-template-columns: 1fr 1fr; gap:24px; align-items:center; height: 80px; }
+    .steps li + li { margin-top:20px; }
+    .steps li::before { counter-increment: step; content: counter(step); position:absolute; left:50%; transform: translate(-50%, -50%); top:50%; width:52px; height:52px; border-radius:999px; background:#222; color:#fff; display:grid; place-items:center; font-weight:700; z-index:2; }
+    .steps li::after { content:""; position:absolute; left:50%; transform:translateX(-50%); top:-50%; bottom:-50%; width:2px; background:#222; z-index:1; }
+    .steps li:first-child::after { top:50%; bottom:-50%; }
+    .steps li:last-child::after { top:-50%; bottom:50%; }
+    .steps li .left, .steps li .right { text-align:left; position:relative; }
+    .steps li:nth-child(odd) .left { justify-self:end; max-width: 360px; text-align:right; padding-right:56px; }
+    .steps li:nth-child(odd) .right { visibility:hidden; height:0; }
+    .steps li:nth-child(even) .right { justify-self:start; max-width: 360px; padding-left:56px; }
+    .steps li:nth-child(even) .left { visibility:hidden; height:0; }
+    .steps strong { font-size:22px; font-weight: var(--title-w); line-height: var(--title-lh); }
+    .steps p { margin:6px 0 0; color:#555; font-weight: var(--body-w); line-height: var(--body-lh); }
+
+    #form { max-width: 660px; margin: 40px auto; padding: 0 24px; }
+    #form h2 { text-align:center; margin-bottom: 28px; }
+    #form > p { text-align:center; max-width: 720px; margin: 0 auto 36px; color:#666; font-size: 20px; }
+    form .field { margin-bottom: 20px; }
+    form label { display:block; font-weight: 600; margin-bottom: 8px; }
     input, textarea, select, button { font: inherit; }
-    input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
-    button[type=submit] { padding: 10px 16px; border-radius: 999px; border: 2px solid #2971f5; background: #2971f5; color: #fff; }
+    input, textarea, select { width: 100%; padding: 18px 16px; border: 1px solid #222; border-radius: 2px; background: #fff; color:#111; }
+    body.dark input, body.dark textarea, body.dark select { background:#0b0b0b; color:#eaeaea; border-color:#444; }
+    ::placeholder { color:#9aa0a6; opacity:1; }
+    body.dark ::placeholder { color:#8a8f98; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { opacity: 1; height:auto; }
+    select { appearance:none; -webkit-appearance:none; -moz-appearance:none; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'); background-repeat:no-repeat; background-position: right 12px center; background-size: 18px; padding-right: 44px; }
+    body.dark select { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'); }
+    button[type=submit] { display:block; margin: 8px auto 0; padding: 14px 24px; border-radius: 999px; border: 0; background: linear-gradient(135deg, #246BFF, #3D7BFF); color: #fff; font-weight:700; }
+
+    #form h2 { text-align:center; }
+    #form > p { text-align:center; max-width: 720px; margin: 0 auto 16px; color:#666; }
+
+    /* Gallery carousel */
+    #gallery { position: relative; }
+    .gallery-viewport { overflow: hidden; }
+    .gallery-track { display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom: 8px; }
+    .gallery-track.single { justify-content:center; }
+    .gallery-track img { height: 360px; width: auto; border-radius:8px; scroll-snap-align:center; flex: 0 0 auto; }
+    .gallery-nav { position:absolute; inset: 0; pointer-events:none; }
+    .gallery-btn { position:absolute; top:50%; transform: translateY(-50%); width:40px; height:40px; border-radius:999px; border:0; background:#ffffffcc; color:#111; display:grid; place-items:center; pointer-events:auto; cursor:pointer; }
+    .gallery-btn.prev { left:-8px; }
+    .gallery-btn.next { right:-8px; }
+    body.dark .gallery-btn { background:#222c; color:#fff; }
+
     @media (min-width: 768px) {
       .hero { grid-template-columns: 6fr 6fr; }
+      .promo { grid-template-columns: 7fr 5fr; }
+      .promo h2 { text-align:center; white-space: nowrap; }
+      .promo .p-cta { justify-content:flex-end; }
+      #benefits { max-width: 720px; padding: 0 48px; }
+      #form { max-width: 720px; padding: 0 48px; }
+      #form form { max-width: 660px; margin: 0 auto; }
     }
   </style>
 </head>
-<body>
+<body class="{{ theme|default:'light' }} {% if font_family and font_family != 'system' %}font-{{ font_family }}{% endif %}">
   <main>
     {% for block in page.body %}
       {% if block.block_type == 'hero' %}
@@ -51,15 +156,12 @@
               {% if block.value.subtitle %}<p>{{ block.value.subtitle }}</p>{% endif %}
             </header>
             <div class="pricing">
-              {% with p=None %}
-                {% if block.value.price %}
-                  {% with p=block.value.price %}{% endwith %}
-                {% elif block.value.use_product_price and product %}
-                  {% with p=product.price %}{% endwith %}
-                {% endif %}
-                {% if p %}<strong class="price">{{ p }}</strong>{% endif %}
-              {% endwith %}
-              {% if block.value.old_price %}<s class="old-price">{{ block.value.old_price }}</s>{% endif %}
+              {% if block.value.price %}
+                <strong class="price">{{ block.value.price }} <span class="currency">грн.</span></strong>
+              {% elif product %}
+                <strong class="price">{{ product.price }} <span class="currency">грн.</span></strong>
+              {% endif %}
+              {% if block.value.old_price %}<s class="old-price">{{ block.value.old_price }} <span class="currency">грн.</span></s>{% endif %}
             </div>
             {% if block.value.cta_anchor %}
               <p><a class="btn" href="{{ block.value.cta_anchor }}">{{ block.value.cta_text }}</a></p>
@@ -69,11 +171,32 @@
 
       {% elif block.block_type == 'gallery' %}
         <section id="gallery">
-          <div class="gallery-grid">
-            {% for img in block.value.images %}
-              {% image img width-800 loading="lazy" %}
-            {% endfor %}
+          <div class="gallery-viewport">
+            <div class="gallery-track{% if block.value.images|length == 1 %} single{% endif %}" id="galleryTrack">
+              {% for img in block.value.images %}
+                {% image img width-800 loading="lazy" %}
+              {% endfor %}
+            </div>
           </div>
+          <div class="gallery-nav" aria-hidden="true">
+            <button type="button" class="gallery-btn prev" id="galPrev" aria-label="Previous">‹</button>
+            <button type="button" class="gallery-btn next" id="galNext" aria-label="Next">›</button>
+          </div>
+          <script>
+            (function(){
+              const track = document.getElementById('galleryTrack');
+              if(!track) return;
+              function scrollByCard(dir){
+                const card = track.querySelector('img');
+                const delta = (card ? (card.clientWidth + 16) : 320) * dir;
+                track.scrollBy({ left: delta, behavior: 'smooth' });
+              }
+              const prev = document.getElementById('galPrev');
+              const next = document.getElementById('galNext');
+              prev && prev.addEventListener('click', ()=>scrollByCard(-1));
+              next && next.addEventListener('click', ()=>scrollByCard(1));
+            })();
+          </script>
         </section>
 
       {% elif block.block_type == 'video' %}
@@ -84,7 +207,7 @@
         </section>
 
       {% elif block.block_type == 'animated' %}
-        <section id="animated-image">
+        <section id="animated-image" class="animated align-{{ block.value.alignment|default:'center' }}">
           {% if block.value.image %}
             <img src="{{ block.value.image.file.url }}" alt="{{ block.value.alt|default:'' }}" style="max-width:100%;height:auto;border-radius:8px;" loading="lazy" />
           {% endif %}
@@ -95,15 +218,42 @@
           {{ block.value.html|richtext }}
         </section>
 
+      {% elif block.block_type == 'promo' %}
+        <section id="promo" class="promo">
+          <div>
+            <h2>{{ block.value.title }}</h2>
+            <p class="p-text">{{ block.value.text }}</p>
+          </div>
+          <div class="p-cta">
+            {% if block.value.price %}
+              <strong class="price">{{ block.value.price }} <span class="currency">грн.</span></strong>
+            {% elif product %}
+              <strong class="price">{{ product.price }} <span class="currency">грн.</span></strong>
+            {% endif %}
+            {% if block.value.old_price %}<s class="old-price">{{ block.value.old_price }} <span class="currency">грн.</span></s>{% endif %}
+            {% if block.value.cta_anchor %}
+              <a class="btn" href="{{ block.value.cta_anchor }}">{{ block.value.cta_text }}</a>
+            {% endif %}
+          </div>
+        </section>
+
       {% elif block.block_type == 'benefits' %}
         <section id="benefits">
           {% if block.value.title %}<h2>{{ block.value.title }}</h2>{% endif %}
-          <ul>
+          <ul class="benefits">
             {% for it in block.value.items %}
               <li>
-                {% if it.icon %}{% image it.icon width-32 loading="lazy" %}{% endif %}
-                <strong>{{ it.title }}</strong>
-                <p>{{ it.description }}</p>
+                <div class="benefit-icon">
+                  {% if it.icon %}{% image it.icon width-48 loading="lazy" %}{% else %}
+                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+                    <path d="M6 26 L18 36 L42 10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  {% endif %}
+                </div>
+                <div>
+                  <strong>{{ it.title }}</strong>
+                  <p>{{ it.description }}</p>
+                </div>
               </li>
             {% endfor %}
           </ul>
@@ -112,11 +262,17 @@
       {% elif block.block_type == 'steps' %}
         <section id="steps">
           {% if block.value.title %}<h2>{{ block.value.title }}</h2>{% endif %}
-          <ol>
+          <ol class="steps">
             {% for st in block.value.items %}
               <li>
-                <strong>{{ st.title }}</strong>
-                <p>{{ st.description }}</p>
+                <div class="left">
+                  <strong>{{ st.title }}</strong>
+                  <p>{{ st.description }}</p>
+                </div>
+                <div class="right">
+                  <strong>{{ st.title }}</strong>
+                  <p>{{ st.description }}</p>
+                </div>
               </li>
             {% endfor %}
           </ol>
@@ -128,34 +284,54 @@
           {% if block.value.subtitle %}<p>{{ block.value.subtitle }}</p>{% endif %}
           <form method="post">
             {% csrf_token %}
+            {% if block.value.show_full_name %}
             <div class="field">
               <label for="full_name">ФІО</label>
-              <input id="full_name" type="text" name="full_name" required />
+              <input id="full_name" type="text" name="full_name" required placeholder="Введіть Ваше ім’я" />
             </div>
+            {% endif %}
+            {% if block.value.show_country %}
             <div class="field">
               <label for="country">Країна</label>
               <select id="country" name="country">
                 <option value="UA" selected>Ukraine</option>
                 <option value="PL">Poland</option>
+                <option value="DE">Germany</option>
+                <option value="CZ">Czechia</option>
+                <option value="SK">Slovakia</option>
+                <option value="RO">Romania</option>
+                <option value="HU">Hungary</option>
+                <option value="LT">Lithuania</option>
+                <option value="LV">Latvia</option>
+                <option value="EE">Estonia</option>
               </select>
             </div>
+            {% endif %}
+            {% if block.value.show_phone %}
             <div class="field">
               <label for="phone">Телефон</label>
-              <input id="phone" type="tel" name="phone" required />
-              <small id="phone-hint">Приклад: +380 XX XXX-XX-XX або +48 XXX-XXX-XXX</small>
+              <input id="phone" type="tel" name="phone" required placeholder="+380 (99) 999-99-99" />
+              <small id="phone-hint">Приклад: +380 99 99-9999</small>
             </div>
+            {% endif %}
+            {% if block.value.show_email %}
             <div class="field">
               <label for="email">Email</label>
-              <input id="email" type="email" name="email" />
+              <input id="email" type="email" name="email" placeholder="name@example.com" />
             </div>
+            {% endif %}
+            {% if block.value.show_quantity %}
             <div class="field">
               <label for="quantity">Кількість</label>
-              <input id="quantity" type="number" min="1" step="1" name="quantity" value="1" />
+              <input id="quantity" type="number" min="1" step="1" name="quantity" value="1" placeholder="1" />
             </div>
+            {% endif %}
+            {% if block.value.show_comment %}
             <div class="field">
               <label for="comment">Коментар</label>
-              <textarea id="comment" name="comment" rows="3"></textarea>
+              <textarea id="comment" name="comment" rows="3" placeholder="Ваш коментар"></textarea>
             </div>
+            {% endif %}
             <!-- CRM hidden fields (external compatibility) -->
             <input type="hidden" name="price" value="{% if product %}{{ product.price }}{% endif %}">
             <input type="hidden" name="id" value="{% if product %}{{ product.id }}{% endif %}">

@@ -1,7 +1,7 @@
 from django.db import models
 from django import forms
 from django.utils.functional import cached_property
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.core.cache import cache
 from django.core.mail import mail_admins
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -67,7 +67,7 @@ class HeroBlock(blocks.StructBlock):
     old_price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
     image = ImageChooserBlock(required=False)
     cta_text = blocks.CharBlock(required=False, default="Замовити зараз")
-    cta_anchor = blocks.CharBlock(required=False, help_text="Якорь ссылки, например #form")
+    cta_anchor = blocks.CharBlock(required=False, default="#form", help_text="Якорь ссылки, например #form")
     use_product_image = blocks.BooleanBlock(required=False, default=True, help_text="Если задан product у страницы — использовать его изображение")
     use_product_price = blocks.BooleanBlock(required=False, default=True, help_text="Если задан product у страницы — использовать его цену")
 
@@ -96,6 +96,16 @@ class VideoBlock(blocks.StructBlock):
 class AnimatedImageBlock(blocks.StructBlock):
     image = ImageChooserBlock(required=True, help_text="Загрузите GIF для анимации")
     alt = blocks.CharBlock(required=False, help_text="Alt-текст (опционально)")
+    alignment = blocks.ChoiceBlock(
+        required=False,
+        choices=(
+            ("left", "Left"),
+            ("center", "Center"),
+            ("right", "Right"),
+        ),
+        default="center",
+        help_text="Выравнивание блока на странице",
+    )
 
     class Meta:
         icon = "image"
@@ -139,10 +149,29 @@ class StepsBlock(blocks.StructBlock):
         label = "Steps"
 
 
+class PromoBlock(blocks.StructBlock):
+    title = blocks.CharBlock(required=True)
+    text = blocks.TextBlock(required=True)
+    price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
+    old_price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
+    cta_text = blocks.CharBlock(required=False, default="Замовити зараз")
+    cta_anchor = blocks.CharBlock(required=False, default="#form", help_text="Якорь ссылки, например #form")
+    use_product_price = blocks.BooleanBlock(required=False, default=True)
+
+    class Meta:
+        icon = "pick"
+        label = "Promo Text + Price"
+
 class FormBlock(blocks.StructBlock):
     title = blocks.CharBlock(required=False, default="ЗАЛИШИТИ ЗАЯВКУ")
     subtitle = blocks.TextBlock(required=False)
     submit_text = blocks.CharBlock(required=False, default="Залишити заявку")
+    show_full_name = blocks.BooleanBlock(required=False, default=True, label="Показать ФИО")
+    show_country = blocks.BooleanBlock(required=False, default=False, label="Показать страну")
+    show_phone = blocks.BooleanBlock(required=False, default=True, label="Показать телефон")
+    show_email = blocks.BooleanBlock(required=False, default=False, label="Показать Email")
+    show_quantity = blocks.BooleanBlock(required=False, default=False, label="Показать количество")
+    show_comment = blocks.BooleanBlock(required=False, default=False, label="Показать комментарий")
 
     class Meta:
         icon = "form"
@@ -236,11 +265,19 @@ class OrderRequestForm(forms.Form):
     COUNTRY_CHOICES = (
         ("UA", "Ukraine"),
         ("PL", "Poland"),
+        ("DE", "Germany"),
+        ("CZ", "Czechia"),
+        ("SK", "Slovakia"),
+        ("RO", "Romania"),
+        ("HU", "Hungary"),
+        ("LT", "Lithuania"),
+        ("LV", "Latvia"),
+        ("EE", "Estonia"),
     )
     full_name = forms.CharField(max_length=255)
     phone = forms.CharField(max_length=32)
     email = forms.EmailField(required=False)
-    quantity = forms.IntegerField(min_value=1, initial=1)
+    quantity = forms.IntegerField(min_value=1, initial=1, required=False)
     comment = forms.CharField(widget=forms.Textarea, required=False)
     country = forms.ChoiceField(choices=COUNTRY_CHOICES, initial="UA")
 
@@ -314,7 +351,8 @@ class ProductDetailPage(Page):
                 return redirect(self.url)
             ctx = self.get_context(request)
             ctx["order_form"] = form
-            return self.render(request, context_overrides=ctx)
+            # Render directly to avoid binding StreamField from POST data
+            return render(request, self.get_template(request), ctx)
         return super().serve(request)
 
 
@@ -325,6 +363,43 @@ class ProductLandingPage(Page):
     template = "landing/product_landing_page.html"  # Основной шаблон
     
     product = models.ForeignKey("eshop.Product", on_delete=models.PROTECT, related_name="landing_pages", null=True, blank=True)
+    theme = models.CharField(
+        max_length=10,
+        choices=(
+            ("light", "Light"),
+            ("dark", "Dark"),
+        ),
+        default="light",
+    )
+    font_family = models.CharField(
+        max_length=20,
+        choices=(
+            ("system", "System Default"),
+            ("inter", "Inter"),
+            ("roboto", "Roboto"),
+            ("montserrat", "Montserrat"),
+        ),
+        default="system",
+    )
+    # Typography controls
+    heading_weight = models.CharField(
+        max_length=3,
+        choices=(("300","300"),("400","400"),("500","500"),("600","600"),("700","700"),("800","800")),
+        default="600",
+    )
+    heading_line_height = models.DecimalField(max_digits=3, decimal_places=2, default=1.25)
+    title_weight = models.CharField(
+        max_length=3,
+        choices=(("300","300"),("400","400"),("500","500"),("600","600")),
+        default="400",
+    )
+    title_line_height = models.DecimalField(max_digits=3, decimal_places=2, default=1.30)
+    body_weight = models.CharField(
+        max_length=3,
+        choices=(("300","300"),("400","400"),("500","500")),
+        default="300",
+    )
+    body_line_height = models.DecimalField(max_digits=3, decimal_places=2, default=1.30)
     success_page = models.ForeignKey("landing.OrderSuccessPage", on_delete=models.SET_NULL, null=True, blank=True)
     
     # Динамический выбор шаблона
@@ -335,8 +410,16 @@ class ProductLandingPage(Page):
     
     content_panels = Page.content_panels + [
         FieldPanel("product"),
+        FieldPanel("theme"),
+        FieldPanel("font_family"),
+        FieldPanel("heading_weight"),
+        FieldPanel("heading_line_height"),
+        FieldPanel("title_weight"),
+        FieldPanel("title_line_height"),
+        FieldPanel("body_weight"),
+        FieldPanel("body_line_height"),
         FieldPanel("success_page"),
-        FieldPanel("body")
+        FieldPanel("body"),
     ]
 
     # Use Wagtail's default page form
@@ -352,6 +435,7 @@ class ProductLandingPage(Page):
             ("video", VideoBlock()),
             ("animated", AnimatedImageBlock()),
             ("text", TextSectionBlock()),
+            ("promo", PromoBlock()),
             ("benefits", BenefitsBlock()),
             ("steps", StepsBlock()),
             ("form", FormBlock()),
@@ -360,7 +444,19 @@ class ProductLandingPage(Page):
         blank=True,
     )
 
-    content_panels = Page.content_panels + [FieldPanel("product"), FieldPanel("success_page"), FieldPanel("body")]
+    content_panels = Page.content_panels + [
+        FieldPanel("product"),
+        FieldPanel("theme"),
+        FieldPanel("font_family"),
+        FieldPanel("heading_weight"),
+        FieldPanel("heading_line_height"),
+        FieldPanel("title_weight"),
+        FieldPanel("title_line_height"),
+        FieldPanel("body_weight"),
+        FieldPanel("body_line_height"),
+        FieldPanel("success_page"),
+        FieldPanel("body"),
+    ]
 
     parent_page_types = ["landing.HomePage", "landing.ProductListingPage"]
     subpage_types = []
@@ -376,6 +472,14 @@ class ProductLandingPage(Page):
         ctx["site_name"] = getattr(settings, "WAGTAIL_SITE_NAME", "")
         # Всегда добавляем product в контекст (даже если None)
         ctx["product"] = self.product_obj
+        ctx["theme"] = self.theme
+        ctx["font_family"] = self.font_family
+        ctx["heading_weight"] = self.heading_weight
+        ctx["heading_line_height"] = float(self.heading_line_height)
+        ctx["title_weight"] = self.title_weight
+        ctx["title_line_height"] = float(self.title_line_height)
+        ctx["body_weight"] = self.body_weight
+        ctx["body_line_height"] = float(self.body_line_height)
         # Simple order form (same fields as ProductDetailPage)
         ctx["order_form"] = OrderRequestForm()
         return ctx
