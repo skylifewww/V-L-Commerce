@@ -84,6 +84,25 @@ class GalleryBlock(blocks.StructBlock):
         label = "Gallery"
 
 
+class SimpleImageBlock(blocks.StructBlock):
+    image = ImageChooserBlock(required=True)
+    alt = blocks.CharBlock(required=False, help_text="Alt-текст (опционально)")
+
+    class Meta:
+        icon = "image"
+        label = "Banner"
+
+class TitleBannerBlock(blocks.StructBlock):
+    top_text = blocks.CharBlock(required=False, help_text="Верхняя надпись (опционально)")
+    image = ImageChooserBlock(required=True, help_text="Изображение на всю ширину блока")
+    bottom_text = blocks.CharBlock(required=False, help_text="Нижняя надпись (опционально)")
+    text_color = blocks.CharBlock(required=False, default="#cc5a12", help_text="Цвет надписей: например #ff5500 или rgb(255,85,0)")
+
+    class Meta:
+        icon = "title"
+        label = "Title Banner"
+
+
 class VideoBlock(blocks.StructBlock):
     youtube_id = blocks.CharBlock(required=True, help_text="YouTube ID, например wKj3LlQ89IA")
     height = blocks.IntegerBlock(required=False, default=540)
@@ -432,6 +451,8 @@ class ProductLandingPage(Page):
         [
             ("hero", HeroBlock()),
             ("gallery", GalleryBlock()),
+            ("image", SimpleImageBlock()),
+            ("title_banner", TitleBannerBlock()),
             ("video", VideoBlock()),
             ("animated", AnimatedImageBlock()),
             ("text", TextSectionBlock()),
