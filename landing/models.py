@@ -12,10 +12,18 @@ from wagtail.fields import StreamField
 from wagtail.admin.panels import FieldPanel
 from wagtail.admin.forms import WagtailAdminPageForm
 from wagtail import blocks
+from django.utils.datastructures import MultiValueDictKeyError
 from wagtail.blocks import RichTextBlock
 from wagtail.images.blocks import ImageChooserBlock
 
 from eshop.models import Product, Category, Customer, Order, OrderItem
+
+class SafeListBlock(blocks.ListBlock):
+    def value_from_datadict(self, data, files, prefix):
+        try:
+            return super().value_from_datadict(data, files, prefix)
+        except MultiValueDictKeyError:
+            return []
 
 class FeaturedProductsBlock(blocks.StructBlock):
     title = blocks.CharBlock(required=False)
@@ -77,7 +85,17 @@ class HeroBlock(blocks.StructBlock):
 
 
 class GalleryBlock(blocks.StructBlock):
-    images = blocks.ListBlock(ImageChooserBlock())
+    items = SafeListBlock(
+        blocks.StructBlock(
+            [
+                ("image", ImageChooserBlock()),
+                ("top_text", blocks.TextBlock(required=False)),
+                ("bottom_text", blocks.TextBlock(required=False)),
+            ]
+        ),
+        required=False,
+        help_text="Список элементов галереи: изображение и опциональные тексты сверху/снизу."
+    )
 
     class Meta:
         icon = "image"
@@ -170,7 +188,7 @@ class StepsBlock(blocks.StructBlock):
 
 class PromoBlock(blocks.StructBlock):
     title = blocks.CharBlock(required=True)
-    text = blocks.TextBlock(required=True)
+    text = blocks.TextBlock(required=False)
     price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
     old_price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
     cta_text = blocks.CharBlock(required=False, default="Замовити зараз")

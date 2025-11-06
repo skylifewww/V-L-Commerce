@@ -23,6 +23,7 @@
     {% endif %}
   {% endif %}
   <style>
+    html, body { overflow-x: hidden; }
     :root{
       --heading-w: {{ heading_weight|default:'700' }};
       --heading-lh: {{ heading_line_height|default:1.25 }};
@@ -136,16 +137,31 @@
     #form > p { text-align:center; max-width: 720px; margin: 0 auto 16px; color:#666; }
 
     /* Gallery carousel */
-    #gallery { position: relative; }
-    .gallery-viewport { overflow: hidden; }
-    .gallery-track { display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom: 8px; }
+    #gallery { position: relative; background:#111; color:#fff; overflow:hidden; }
+    .gallery-viewport { overflow: hidden; min-height: 85vh; display:grid; align-items:center; }
+    .gallery-track { display:flex; gap:24px; overflow-x:auto; scroll-snap-type:x mandatory; padding: 0 50vw 12px; align-items:center; scrollbar-width: none; -ms-overflow-style: none; }
+    .gallery-track::-webkit-scrollbar { display:none; height:0; }
     .gallery-track.single { justify-content:center; }
-    .gallery-track img { height: 360px; width: auto; border-radius:8px; scroll-snap-align:center; flex: 0 0 auto; }
+    .gallery-track img { height: min(53vh, 546px); width: auto; border-radius:12px; box-shadow: 0 8px 28px rgba(0,0,0,0.45); }
+    .gallery-track .g-item { display:flex; flex-direction:column; align-items:center; gap:20px; scroll-snap-align:center; flex: 0 0 auto; }
+    .gallery-track .g-top, .gallery-track .g-bottom { max-width: 720px; text-align:center; color:#ddd; padding: 0 8px; }
+    .gallery-track .g-top { margin-bottom: 8px; }
+    .gallery-track .g-bottom { margin-top: 8px; }
+    #gallery .gallery-top, #gallery .gallery-bottom { max-width: 1200px; margin: 0 auto; padding: 16px 24px; color: #ddd; }
+    #gallery .gallery-top { padding-top: 24px; }
+    #gallery .gallery-bottom { padding-bottom: 24px; }
     .gallery-nav { position:absolute; inset: 0; pointer-events:none; }
-    .gallery-btn { position:absolute; top:50%; transform: translateY(-50%); width:40px; height:40px; border-radius:999px; border:0; background:#ffffffcc; color:#111; display:grid; place-items:center; pointer-events:auto; cursor:pointer; }
-    .gallery-btn.prev { left:-8px; }
-    .gallery-btn.next { right:-8px; }
-    body.dark .gallery-btn { background:#222c; color:#fff; }
+    .gallery-btn { position:absolute; top:50%; transform: translateY(-50%); width:44px; height:44px; border-radius:999px; border:0; background:#ffffffcc; color:#111; display:grid; place-items:center; pointer-events:auto; cursor:pointer; }
+    .gallery-btn.prev { left:16px; }
+    .gallery-btn.next { right:16px; }
+    body.dark .gallery-btn, #gallery .gallery-btn { background:#222c; color:#fff; }
+
+    .gallery-dots { display:flex; justify-content:center; gap:10px; padding: 10px 0 18px; }
+    .gallery-dots .dot {
+      width:10px; height:10px; border-radius:50%; border:0; background:#666;
+      opacity:.7; cursor:pointer; appearance:none; -webkit-appearance:none; display:inline-block;
+    }
+    .gallery-dots .dot.active { background:#fff; opacity:1; }
 
     @media (min-width: 768px) {
       .hero { grid-template-columns: 6fr 6fr; }
@@ -228,14 +244,25 @@
         </section>
 
       {% elif block.block_type == 'gallery' %}
-        <section id="gallery">
+        <section id="gallery" style="width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);">
           <div class="gallery-viewport">
-            <div class="gallery-track{% if block.value.images|length == 1 %} single{% endif %}" id="galleryTrack">
-              {% for img in block.value.images %}
-                {% image img width-800 loading="lazy" %}
+            <div class="gallery-track{% if block.value.items|length == 1 %} single{% endif %}" id="galleryTrack">
+              {% for it in block.value.items %}
+                <div class="g-item">
+                  {% if it.top_text %}<div class="g-top">{{ it.top_text }}</div>{% endif %}
+                  {% image it.image width-800 loading="lazy" %}
+                  {% if it.bottom_text %}<div class="g-bottom">{{ it.bottom_text }}</div>{% endif %}
+                </div>
               {% endfor %}
             </div>
           </div>
+          {% if block.value.items and block.value.items|length > 1 %}
+            <div class="gallery-dots" id="galleryDots">
+              {% for _ in block.value.items %}
+                <button type="button" class="dot" aria-label="Go to slide {{ forloop.counter }}"></button>
+              {% endfor %}
+            </div>
+          {% endif %}
           <div class="gallery-nav" aria-hidden="true">
             <button type="button" class="gallery-btn prev" id="galPrev" aria-label="Previous">‹</button>
             <button type="button" class="gallery-btn next" id="galNext" aria-label="Next">›</button>
@@ -244,15 +271,70 @@
             (function(){
               const track = document.getElementById('galleryTrack');
               if(!track) return;
-              function scrollByCard(dir){
-                const card = track.querySelector('img');
-                const delta = (card ? (card.clientWidth + 16) : 320) * dir;
-                track.scrollBy({ left: delta, behavior: 'smooth' });
+
+              const items = Array.from(track.querySelectorAll('.g-item')).length
+                ? Array.from(track.querySelectorAll('.g-item'))
+                : Array.from(track.querySelectorAll('img'));
+              const GAP = 24; // keep in sync with CSS .gallery-track gap
+
+              function centerItem(el){
+                if(!el) return;
+                const container = track;
+                const elCenter = el.offsetLeft + (el.clientWidth / 2);
+                const target = elCenter - (container.clientWidth / 2);
+                container.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
               }
+
+              function getCenteredIndex(){
+                const viewportCenter = track.scrollLeft + (track.clientWidth / 2);
+                let bestIdx = 0, bestDist = Infinity;
+                items.forEach((el, idx) => {
+                  const center = el.offsetLeft + (el.clientWidth / 2);
+                  const dist = Math.abs(center - viewportCenter);
+                  if(dist < bestDist){ bestDist = dist; bestIdx = idx; }
+                });
+                return bestIdx;
+              }
+
+              // Click to center
+              items.forEach((el) => el.addEventListener('click', () => centerItem(el)));
+
+              // Arrows to move left/right based on currently centered item
               const prev = document.getElementById('galPrev');
               const next = document.getElementById('galNext');
-              prev && prev.addEventListener('click', ()=>scrollByCard(-1));
-              next && next.addEventListener('click', ()=>scrollByCard(1));
+              prev && prev.addEventListener('click', () => {
+                const idx = getCenteredIndex();
+                const target = items[Math.max(0, idx - 1)];
+                centerItem(target);
+              });
+              next && next.addEventListener('click', () => {
+                const idx = getCenteredIndex();
+                const target = items[Math.min(items.length - 1, idx + 1)];
+                centerItem(target);
+              });
+
+              // Dots
+              const dotsWrap = document.getElementById('galleryDots');
+              const dots = dotsWrap ? Array.from(dotsWrap.querySelectorAll('.dot')) : [];
+              function updateDots(activeIdx){
+                dots.forEach((d, i) => d.classList.toggle('active', i === activeIdx));
+              }
+              dots.forEach((d, i) => d.addEventListener('click', () => centerItem(items[i])));
+
+              // Sync on scroll (throttled)
+              let rafId = null;
+              function onScroll(){
+                if(rafId) return; rafId = requestAnimationFrame(() => {
+                  rafId = null;
+                  updateDots(getCenteredIndex());
+                });
+              }
+              track.addEventListener('scroll', onScroll, { passive: true });
+
+              // On load, center the first or the nearest already-in-view item
+              if(items.length){
+                requestAnimationFrame(() => { centerItem(items[0]); updateDots(0); });
+              }
             })();
           </script>
         </section>
@@ -265,7 +347,7 @@
         </section>
 
       {% elif block.block_type == 'video' %}
-        <section id="video">
+        <section id="video" style="width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);">
           <div class="video-wrapper" style="height: {{ block.value.height }}px;">
             <iframe width="100%" height="100%" src="https://www.youtube.com/embed/{{ block.value.youtube_id|youtube_id }}?rel=0&modestbranding=1&playsinline=1&origin={{ request.scheme }}://{{ request.get_host }}&widget_referrer={{ request.build_absolute_uri|urlencode }}" title="YouTube video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>
           </div>
@@ -287,7 +369,9 @@
         <section id="promo" class="promo">
           <div>
             <h2>{{ block.value.title }}</h2>
-            <p class="p-text">{{ block.value.text }}</p>
+            {% if block.value.text %}
+              <p class="p-text">{{ block.value.text }}</p>
+            {% endif %}
           </div>
           <div class="p-cta">
             {% if block.value.price %}
