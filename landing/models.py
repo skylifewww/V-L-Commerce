@@ -16,13 +16,21 @@ from django.utils.datastructures import MultiValueDictKeyError
 from wagtail.blocks import RichTextBlock
 from wagtail.images.blocks import ImageChooserBlock
 
-from eshop.models import Product, Category, Customer, Order, OrderItem
+from eshop.models import Product, Category, Customer, Order, OrderItem, Lead
 
 class SafeListBlock(blocks.ListBlock):
     def value_from_datadict(self, data, files, prefix):
         try:
             return super().value_from_datadict(data, files, prefix)
         except MultiValueDictKeyError:
+            return []
+
+class SafeStreamBlock(blocks.StreamBlock):
+    def value_from_datadict(self, data, files, prefix):
+        try:
+            return super().value_from_datadict(data, files, prefix)
+        except MultiValueDictKeyError:
+            # When preview POST doesn't include '<prefix>-count'
             return []
 
 class FeaturedProductsBlock(blocks.StructBlock):
@@ -217,12 +225,14 @@ class FormBlock(blocks.StructBlock):
 class HomePage(Page):
     icon = "home"
     body = StreamField(
-        [
-            ("featured", FeaturedProductsBlock()),
-            ("grid", ProductGridBlock()),
-            ("testimonials", TestimonialsBlock()),
-            ("cta", CallToActionBlock()),
-        ],
+        SafeStreamBlock(
+            [
+                ("featured", FeaturedProductsBlock()),
+                ("grid", ProductGridBlock()),
+                ("testimonials", TestimonialsBlock()),
+                ("cta", CallToActionBlock()),
+            ]
+        ),
         use_json_field=True,
         blank=True,
     )
@@ -320,16 +330,12 @@ class OrderRequestForm(forms.Form):
 
     def clean_phone(self):
         import re
-        phone = self.cleaned_data.get("phone", "").strip()
-        country = self.cleaned_data.get("country", "UA")
-        patterns = {
-            "UA": r"^\+?380\s?\(?\d{2}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}$",
-            "PL": r"^\+?48\s?\d{3}[\s-]?\d{3}[\s-]?\d{3}$",
-        }
-        pat = patterns.get(country)
-        if pat and not re.match(pat, phone):
-            raise forms.ValidationError("Enter a valid phone for selected country.")
-        return phone
+        raw = self.cleaned_data.get("phone", "")
+        digits = re.sub(r"\D+", "", raw)
+        # Minimal lenient validation: allow any 7..20 digits
+        if not (7 <= len(digits) <= 20):
+            raise forms.ValidationError("Please enter a valid phone number (7-20 digits).")
+        return digits
 
 class ProductDetailPage(Page):
     icon = "tag"
@@ -438,6 +444,9 @@ class ProductLandingPage(Page):
     )
     body_line_height = models.DecimalField(max_digits=3, decimal_places=2, default=1.30)
     success_page = models.ForeignKey("landing.OrderSuccessPage", on_delete=models.SET_NULL, null=True, blank=True)
+    # Tracking pixels (paste full snippets)
+    tiktok_pixel_code = models.TextField(blank=True, help_text="Вставьте полный код пикселя TikTok (будет добавлен в <head>)")
+    meta_pixel_code = models.TextField(blank=True, help_text="Вставьте полный код пикселя Meta/Facebook (будет добавлен в <head>)")
     
     # Динамический выбор шаблона
     def get_template(self, request):
@@ -456,29 +465,51 @@ class ProductLandingPage(Page):
         FieldPanel("body_weight"),
         FieldPanel("body_line_height"),
         FieldPanel("success_page"),
+        FieldPanel("tiktok_pixel_code"),
+        FieldPanel("meta_pixel_code"),
         FieldPanel("body"),
     ]
 
-    # Use Wagtail's default page form
-    base_form_class = WagtailAdminPageForm
+    # Custom admin form to be resilient to preview POST without 'body-count'
+    class ProductLandingAdminForm(WagtailAdminPageForm):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            try:
+                if hasattr(self, "data") and self.data:
+                    data = self.data.copy()
+                    # Ensure streamfield management key exists for admin preview posts
+                    keys = {"body-count", f"{self.add_prefix('body')}-count"}
+                    has_any = any(k in data for k in keys)
+                    if not has_any:
+                        data["body-count"] = "0"
+                        # also set prefixed variant just in case
+                        data[f"{self.add_prefix('body')}-count"] = "0"
+                        self.data = data
+            except Exception:
+                # best-effort only
+                pass
+
+    base_form_class = ProductLandingAdminForm
     
     class Meta:
         verbose_name = "Product Landing Page"
         verbose_name_plural = "Product Landing Pages"
     body = StreamField(
-        [
-            ("hero", HeroBlock()),
-            ("gallery", GalleryBlock()),
-            ("image", SimpleImageBlock()),
-            ("title_banner", TitleBannerBlock()),
-            ("video", VideoBlock()),
-            ("animated", AnimatedImageBlock()),
-            ("text", TextSectionBlock()),
-            ("promo", PromoBlock()),
-            ("benefits", BenefitsBlock()),
-            ("steps", StepsBlock()),
-            ("form", FormBlock()),
-        ],
+        SafeStreamBlock(
+            [
+                ("hero", HeroBlock()),
+                ("gallery", GalleryBlock()),
+                ("image", SimpleImageBlock()),
+                ("title_banner", TitleBannerBlock()),
+                ("video", VideoBlock()),
+                ("animated", AnimatedImageBlock()),
+                ("text", TextSectionBlock()),
+                ("promo", PromoBlock()),
+                ("benefits", BenefitsBlock()),
+                ("steps", StepsBlock()),
+                ("form", FormBlock()),
+            ]
+        ),
         use_json_field=True,
         blank=True,
     )
@@ -494,6 +525,8 @@ class ProductLandingPage(Page):
         FieldPanel("body_weight"),
         FieldPanel("body_line_height"),
         FieldPanel("success_page"),
+        FieldPanel("tiktok_pixel_code"),
+        FieldPanel("meta_pixel_code"),
         FieldPanel("body"),
     ]
 
@@ -526,18 +559,24 @@ class ProductLandingPage(Page):
     def serve(self, request):
         if request.method == "POST":
             form = OrderRequestForm(request.POST)
-            if form.is_valid() and self.product_obj:
+            if form.is_valid():
                 customer, _ = Customer.objects.get_or_create(
                     full_name=form.cleaned_data["full_name"],
                     phone=form.cleaned_data["phone"],
                     defaults={"email": form.cleaned_data.get("email", "")},
                 )
                 order = Order.objects.create(customer=customer)
-                OrderItem.objects.create(
-                    order=order,
-                    product=self.product_obj,
-                    quantity=form.cleaned_data.get("quantity", 1),
-                )
+                # Determine quantity (default to 1 if field is hidden or empty)
+                try:
+                    qty = int(form.cleaned_data.get("quantity") or 1)
+                except (TypeError, ValueError):
+                    qty = 1
+                if self.product_obj:
+                    OrderItem.objects.create(
+                        order=order,
+                        product=self.product_obj,
+                        quantity=qty,
+                    )
                 try:
                     mail_admins(
                         subject=f"New order #{order.id}",
@@ -546,12 +585,41 @@ class ProductLandingPage(Page):
                     )
                 except Exception:
                     pass
+                # Create Lead in internal CRM aggregator
+                try:
+                    utm_source = request.GET.get("utm_source", "") or request.COOKIES.get("utm_source", "")
+                    utm_medium = request.GET.get("utm_medium", "") or request.COOKIES.get("utm_medium", "")
+                    utm_campaign = request.GET.get("utm_campaign", "") or request.COOKIES.get("utm_campaign", "")
+                    ttclid = request.GET.get("ttclid", "") or request.COOKIES.get("ttclid", "")
+                    fbp = request.COOKIES.get("_fbp", "")
+                    fbc = request.COOKIES.get("_fbc", "")
+                    Lead.objects.create(
+                        order=order,
+                        full_name=customer.full_name,
+                        phone=customer.phone,
+                        email=customer.email or "",
+                        product_id=self.product_obj.id,
+                        quantity=qty,
+                        utm_source=utm_source,
+                        utm_medium=utm_medium,
+                        utm_campaign=utm_campaign,
+                        ttclid=ttclid,
+                        fbp=fbp,
+                        fbc=fbc,
+                        landing_url=request.build_absolute_uri(),
+                        user_ip=(request.META.get("REMOTE_ADDR") or None),
+                        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                    )
+                except Exception:
+                    # Do not block user flow if Lead creation fails
+                    pass
                 if self.success_page_id:
                     return redirect(self.success_page.url)
                 return redirect(self.url)
             ctx = self.get_context(request)
             ctx["order_form"] = form
-            return self.render(request, context_overrides=ctx)
+            # Render directly to avoid binding StreamField from POST data (prevents 'body-count' errors)
+            return render(request, self.get_template(request), ctx)
         return super().serve(request)
 
 
@@ -560,6 +628,14 @@ class OrderSuccessPage(Page):
     template = "landing/order_success_page.html"
     parent_page_types = ["landing.HomePage", "landing.ProductListingPage", "landing.ProductLandingPage"]
     subpage_types = []
+    # Tracking pixels (paste full snippets)
+    tiktok_pixel_code = models.TextField(blank=True, help_text="Вставьте полный код пикселя TikTok (будет добавлен в <head>)")
+    meta_pixel_code = models.TextField(blank=True, help_text="Вставьте полный код пикселя Meta/Facebook (будет добавлен в <head>)")
+    
+    content_panels = Page.content_panels + [
+        FieldPanel("tiktok_pixel_code"),
+        FieldPanel("meta_pixel_code"),
+    ]
     
     # Ensure it's available in the add page menu
     class Meta:

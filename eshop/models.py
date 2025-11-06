@@ -118,6 +118,28 @@ class Order(models.Model):
             self.status = self.Status.CANCELLED
             self.save(update_fields=["status", "updated_at"]) 
 
+
+class Lead(models.Model):
+    order = models.OneToOneField("Order", on_delete=models.CASCADE, related_name="lead")
+    full_name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=32)
+    email = models.EmailField(blank=True)
+    product_id = models.IntegerField()
+    quantity = models.IntegerField(default=1)
+    utm_source = models.CharField(max_length=64, blank=True)
+    utm_medium = models.CharField(max_length=64, blank=True)
+    utm_campaign = models.CharField(max_length=128, blank=True)
+    ttclid = models.CharField(max_length=128, blank=True)
+    fbp = models.CharField(max_length=128, blank=True)
+    fbc = models.CharField(max_length=128, blank=True)
+    landing_url = models.URLField(blank=True)
+    user_ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Lead for Order #{self.order_id}"
+
 class OrderComment(models.Model):
     order = models.ForeignKey("Order", on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL)
