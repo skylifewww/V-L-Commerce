@@ -8,3 +8,4 @@ django-extensions
 django-simple-history
 openpyxl
 requests
+dj-database-url
