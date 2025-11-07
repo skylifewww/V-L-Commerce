@@ -1,0 +1,46 @@
+app = "commerce-buygo"
+primary_region = "cdg"
+
+[build]
+  # Fly can autogenerate build config. Keep empty for Nixpacks/Buildpacks or add Dockerfile later.
+
+[deploy]
+  release_command = "python manage.py migrate"
+
+[env]
+  DJANGO_DEBUG = "1"
+  DJANGO_ALLOWED_HOSTS = "commerce-buygo.fly.dev"
+  WAGTAILADMIN_BASE_URL = "https://commerce-buygo.fly.dev"
+  TIME_ZONE = "Europe/Kyiv"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8000
+  processes = ["web"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    soft_limit = 50
+    hard_limit = 100
+
+[processes]
+  web = "python manage.py runserver 0.0.0.0:8000"
+  worker = "celery -A config worker -l info --concurrency=2"
+  beat = "celery -A config beat -l info"
+
+[checks]
+  [checks.http]
+    port = 8000
+    type = "http"
+    interval = "10s"
+    timeout = "2s"
+    method = "get"
+    path = "/admin/login/"
