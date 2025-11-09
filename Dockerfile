@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.13-slim
+ARG PYTHON_VERSION=3.12-slim
 
 FROM python:${PYTHON_VERSION}
 
@@ -23,7 +23,6 @@ RUN set -ex && \
 COPY . /code
 
 ENV SECRET_KEY "DFymgBsIMogTgVSzq3mZvt9VOERc6oXDnmZvYuMAVcOujbULzM"
-RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
