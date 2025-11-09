@@ -67,5 +67,14 @@ console_command = '/code/manage.py shell'
   cpus = 1
 
 [[statics]]
-  guest_path = '/code/static'
+  guest_path = '/code/staticfiles'
   url_prefix = '/static/'
+
+[[statics]]
+  guest_path = '/code/media'
+  url_prefix = '/media/'
+
+# Persist media uploads on a volume
+[mounts]
+  source = 'media'
+  destination = '/code/media'

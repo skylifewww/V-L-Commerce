@@ -9,3 +9,4 @@ django-simple-history
 openpyxl
 requests
 dj-database-url
+gunicorn
