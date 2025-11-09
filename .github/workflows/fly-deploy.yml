@@ -41,12 +41,13 @@ jobs:
           flyctl auth docker
 
       - name: Build and push image to Fly registry
-        run: |
-          docker buildx build \
-            --platform linux/amd64 \
-            -t registry.fly.io/${APP_NAME}:${{ steps.prep.outputs.IMAGE_TAG }} \
-            --push \
-            ${DOCKER_CONTEXT}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.DOCKER_CONTEXT }}
+          platforms: linux/amd64
+          push: true
+          tags: registry.fly.io/${{ env.APP_NAME }}:${{ steps.prep.outputs.IMAGE_TAG }}
+          provenance: false
 
       - name: Deploy pushed image
         env:
