@@ -40,22 +40,20 @@ jobs:
         run: |
           flyctl auth docker
 
-      - name: Build and push image to Fly registry
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ env.DOCKER_CONTEXT }}
-          platforms: linux/amd64
-          push: true
-          tags: registry.fly.io/${{ env.APP_NAME }}:${{ steps.prep.outputs.IMAGE_TAG }}
-          provenance: false
+      - name: Verify Fly auth
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl auth whoami
 
-      - name: Deploy pushed image
+      - name: Deploy (remote build on Fly)
+        working-directory: ${{ env.DOCKER_CONTEXT }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           flyctl deploy \
             --app ${APP_NAME} \
-            --image registry.fly.io/${APP_NAME}:${{ steps.prep.outputs.IMAGE_TAG }} \
+            --remote-only \
+            --image-label ${{ steps.prep.outputs.IMAGE_TAG }} \
             --now
 
       - name: Notify Slack (success)
