@@ -1,5 +1,7 @@
 # TikFlow Commerce – Local Run Book
 
+[![Deploy to Fly](https://github.com/skylifewww/V-L-Commerce/actions/workflows/fly-deploy.yml/badge.svg?branch=main)](https://github.com/skylifewww/V-L-Commerce/actions/workflows/fly-deploy.yml)
+
 ## Prereqs
 - macOS, Python 3.13 (virtualenv)
 - Docker + Docker Compose
