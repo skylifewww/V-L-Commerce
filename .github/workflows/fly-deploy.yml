@@ -49,10 +49,11 @@ jobs:
         working-directory: ${{ env.BUILD_CONTEXT }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_REMOTE_BUILDS: 0
         run: |
           flyctl deploy \
             --app ${APP_NAME} \
-            --remote-only \
+            --local-only \
             --image-label ${{ steps.prep.outputs.IMAGE_TAG }} \
             --now
 
