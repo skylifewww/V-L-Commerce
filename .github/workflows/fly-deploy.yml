@@ -7,7 +7,7 @@ on:
 
 env:
   APP_NAME: commerce-buygo
-  DOCKER_CONTEXT: .
+  BUILD_CONTEXT: .
 
 jobs:
   deploy:
@@ -46,7 +46,7 @@ jobs:
         run: flyctl auth whoami
 
       - name: Deploy (remote build on Fly)
-        working-directory: ${{ env.DOCKER_CONTEXT }}
+        working-directory: ${{ env.BUILD_CONTEXT }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
