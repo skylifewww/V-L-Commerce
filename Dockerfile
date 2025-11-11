@@ -26,4 +26,4 @@ ENV SECRET_KEY "DFymgBsIMogTgVSzq3mZvt9VOERc6oXDnmZvYuMAVcOujbULzM"
 
 EXPOSE 8000
 
-CMD ["gunicorn","--bind",":8000","--workers","2","config.wsgi"]
+CMD ["sh","-c","gunicorn --bind :${PORT:-8000} --workers 2 config.wsgi"]

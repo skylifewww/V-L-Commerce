@@ -66,3 +66,17 @@ jobs:
           else
             railway up --ci .
           fi
+
+      - name: Post-deploy: collectstatic and migrate
+        working-directory: ${{ env.BUILD_CONTEXT }}
+        env:
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+        run: |
+          set -e
+          if [ -n "$RAILWAY_SERVICE_ID" ]; then
+            railway run --service "$RAILWAY_SERVICE_ID" -- python manage.py collectstatic --noinput
+            railway run --service "$RAILWAY_SERVICE_ID" -- python manage.py migrate --noinput
+          else
+            railway run -- python manage.py collectstatic --noinput
+            railway run -- python manage.py migrate --noinput
+          fi
