@@ -1,0 +1,68 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  BUILD_CONTEXT: .
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency: railway-deploy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node (for Railway CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli --no-audit --no-fund --loglevel=error
+
+      - name: Show context
+        working-directory: ${{ env.BUILD_CONTEXT }}
+        run: |
+          pwd
+          ls -la
+
+      - name: Login to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN secret is missing" >&2
+            exit 1
+          fi
+          railway login --token "$RAILWAY_TOKEN"
+
+      # Optional: pick project/environment explicitly if provided
+      - name: Select project/environment (optional)
+        if: ${{ secrets.RAILWAY_PROJECT_ID != '' || secrets.RAILWAY_ENVIRONMENT_ID != '' }}
+        env:
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          if [ -n "$RAILWAY_PROJECT_ID" ]; then
+            railway link --project "$RAILWAY_PROJECT_ID"
+          fi
+          if [ -n "$RAILWAY_ENVIRONMENT_ID" ]; then
+            railway environment --environment "$RAILWAY_ENVIRONMENT_ID"
+          fi
+
+      - name: Deploy to Railway
+        working-directory: ${{ env.BUILD_CONTEXT }}
+        env:
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+        run: |
+          # --ci suppresses prompts; pass PATH as positional arg instead of deprecated --root
+          # If RAILWAY_SERVICE_ID is empty, Railway will try to infer service
+          if [ -n "$RAILWAY_SERVICE_ID" ]; then
+            railway up --service "$RAILWAY_SERVICE_ID" --ci .
+          else
+            railway up --ci .
+          fi
