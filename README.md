@@ -94,6 +94,9 @@ PY
 ## Daily flow
 ```bash
 source .venv/bin/activate
+
+source .venv311/bin/activate
+
 make docker-up
 make migrate
 make run
