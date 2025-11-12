@@ -33,9 +33,6 @@ make docker-up   # Postgres + Redis
 Initialize DB (first run or after reset):
 ```bash
 python3 manage.py migrate
-DJANGO_SUPERUSER_USERNAME=skylife_www \
-DJANGO_SUPERUSER_EMAIL=skylife@ukr.net \
-DJANGO_SUPERUSER_PASSWORD=SkyWlifE123 \
 python3 manage.py createsuperuser --noinput
 ```
 
