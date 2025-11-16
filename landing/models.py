@@ -250,6 +250,23 @@ class FormBlock(blocks.StructBlock):
 
 class HomePage(Page):
     icon = "home"
+    
+    # Company branding fields
+    company_logo = models.ForeignKey(
+        'wagtailimages.Image',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        help_text="Логотип компании для отображения в шапке страницы"
+    )
+    company_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Название компании для отображения в шапке страницы"
+    )
+    
     body = StreamField(
         SafeStreamBlock(
             [
@@ -265,7 +282,11 @@ class HomePage(Page):
         blank=True,
     )
 
-    content_panels = Page.content_panels + [FieldPanel("body")]
+    content_panels = Page.content_panels + [
+        FieldPanel("company_logo"),
+        FieldPanel("company_name"),
+        FieldPanel("body"),
+    ]
 
     subpage_types = [
         "landing.ProductLandingPage",
@@ -275,6 +296,8 @@ class HomePage(Page):
 
     def get_context(self, request):
         ctx = super().get_context(request)
+        ctx["company_logo"] = self.company_logo
+        ctx["company_name"] = self.company_name or getattr(settings, "WAGTAIL_SITE_NAME", "")
         cache_key = "homepage_featured_products"
         featured = cache.get(cache_key)
         if featured is None:
@@ -368,8 +391,25 @@ class OrderRequestForm(forms.Form):
 class ProductDetailPage(Page):
     icon = "tag"
     product = models.ForeignKey("eshop.Product", on_delete=models.PROTECT, related_name="detail_pages")
+    company_logo = models.ForeignKey(
+        "wagtailimages.Image",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Логотип компании для хедера"
+    )
+    company_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Название компании для хедера"
+    )
 
-    content_panels = Page.content_panels + [FieldPanel("product")]
+    content_panels = Page.content_panels + [
+        FieldPanel("product"),
+        FieldPanel("company_logo"),
+        FieldPanel("company_name"),
+    ]
 
     parent_page_types = ["landing.HomePage", "landing.ProductListingPage"]
     subpage_types = []
@@ -401,7 +441,8 @@ class ProductDetailPage(Page):
         related = Product.objects.filter(pk__in=rel_ids)
         ctx["related_products"] = related
         ctx["order_form"] = OrderRequestForm()
-        ctx["site_name"] = getattr(settings, "WAGTAIL_SITE_NAME", "")
+        ctx["company_logo"] = self.company_logo
+        ctx["company_name"] = self.company_name or getattr(settings, "WAGTAIL_SITE_NAME", "")
         return ctx
 
     def serve(self, request):
@@ -471,6 +512,23 @@ class ProductLandingPage(Page):
         default="300",
     )
     body_line_height = models.DecimalField(max_digits=3, decimal_places=2, default=1.30)
+    
+    # Company branding fields
+    company_logo = models.ForeignKey(
+        'wagtailimages.Image',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        help_text="Логотип компании для отображения в шапке страницы"
+    )
+    company_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Название компании для отображения в шапке страницы"
+    )
+    
     success_page = models.ForeignKey("landing.OrderSuccessPage", on_delete=models.SET_NULL, null=True, blank=True)
     # Tracking pixels (paste full snippets)
     tiktok_pixel_code = models.TextField(blank=True, help_text="Вставьте полный код пикселя TikTok (будет добавлен в <head>)")
@@ -492,6 +550,8 @@ class ProductLandingPage(Page):
         FieldPanel("title_line_height"),
         FieldPanel("body_weight"),
         FieldPanel("body_line_height"),
+        FieldPanel("company_logo"),
+        FieldPanel("company_name"),
         FieldPanel("success_page"),
         FieldPanel("tiktok_pixel_code"),
         FieldPanel("meta_pixel_code"),
@@ -542,22 +602,6 @@ class ProductLandingPage(Page):
         blank=True,
     )
 
-    content_panels = Page.content_panels + [
-        FieldPanel("product"),
-        FieldPanel("theme"),
-        FieldPanel("font_family"),
-        FieldPanel("heading_weight"),
-        FieldPanel("heading_line_height"),
-        FieldPanel("title_weight"),
-        FieldPanel("title_line_height"),
-        FieldPanel("body_weight"),
-        FieldPanel("body_line_height"),
-        FieldPanel("success_page"),
-        FieldPanel("tiktok_pixel_code"),
-        FieldPanel("meta_pixel_code"),
-        FieldPanel("body"),
-    ]
-
     parent_page_types = ["landing.HomePage", "landing.ProductListingPage"]
     subpage_types = []
 
@@ -580,6 +624,8 @@ class ProductLandingPage(Page):
         ctx["title_line_height"] = float(self.title_line_height)
         ctx["body_weight"] = self.body_weight
         ctx["body_line_height"] = float(self.body_line_height)
+        ctx["company_logo"] = self.company_logo
+        ctx["company_name"] = self.company_name or getattr(settings, "WAGTAIL_SITE_NAME", "")
         # Simple order form (same fields as ProductDetailPage)
         ctx["order_form"] = OrderRequestForm()
         return ctx
