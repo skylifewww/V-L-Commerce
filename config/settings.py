@@ -6,6 +6,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if os.getenv("CSRF_TRUSTED_ORIGINS") else []
+
+# In development, allow all hosts with wildcard patterns
+if DEBUG:
+    ALLOWED_HOSTS.append("*.lhr.life")
+    ALLOWED_HOSTS.append("*.ngrok-free.dev")
+    CSRF_TRUSTED_ORIGINS.extend(["https://*.lhr.life"])
+    CSRF_TRUSTED_ORIGINS.extend(["https://*.ngrok-free.dev"])
 
 INSTALLED_APPS = [
     "django.contrib.admin",

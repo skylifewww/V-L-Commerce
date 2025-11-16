@@ -1,0 +1,35 @@
+{% load wagtailimages_tags %}
+<section id="hero" class="hero">
+  <div class="media">
+    {% if block.value.image %}
+      {% image block.value.image width-1200 alt=block.value.title|default:'Hero image' loading="lazy" class="hero-img" %}
+    {% else %}
+      <div class="placeholder">No image available</div>
+    {% endif %}
+  </div>
+  <div class="content">
+    <header>
+      <h1>{{ block.value.title|default:'Hero Title' }}</h1>
+      {% if block.value.subtitle %}
+        <p>{{ block.value.subtitle }}</p>
+      {% endif %}
+    </header>
+    <div class="pricing">
+      {% if block.value.price %}
+        <strong class="price">{{ block.value.price }} <span class="currency">грн.</span></strong>
+      {% endif %}
+      {% if block.value.old_price %}
+        <span class="old-price">
+          {{ block.value.old_price }} <span class="currency">грн.</span>
+        </span>
+      {% endif %}
+    </div>
+    {% if block.value.button_text or block.value.button_url %}
+      <div class="cta">
+        <a href="{{ block.value.button_url|default:'#' }}" class="btn btn-primary btn-lg">
+          {{ block.value.button_text|default:'Подробнее' }}
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</section>

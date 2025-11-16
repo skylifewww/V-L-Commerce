@@ -15,6 +15,11 @@ from wagtail import blocks
 from django.utils.datastructures import MultiValueDictKeyError
 from wagtail.blocks import RichTextBlock
 from wagtail.images.blocks import ImageChooserBlock
+from wagtail.blocks.list_block import ListBlock
+from wagtail.models import Page
+from wagtail.admin.panels import FieldPanel
+from wagtail.snippets.blocks import SnippetChooserBlock
+from eshop.models import Product
 
 from eshop.models import Product, Category, Customer, Order, OrderItem, Lead
 
@@ -44,6 +49,7 @@ class FeaturedProductsBlock(blocks.StructBlock):
 class ProductGridBlock(blocks.StructBlock):
     title = blocks.CharBlock(required=False)
     category_slug = blocks.CharBlock(required=False, help_text="Slug категории для фильтрации (опционально)")
+    product_chooser = blocks.PageChooserBlock(required=False, page_type="landing.ProductLandingPage", help_text="Выберите конкретный продукт (опционально)")
     show_prices = blocks.BooleanBlock(required=False, default=True)
 
     class Meta:
@@ -76,20 +82,40 @@ class TestimonialsBlock(blocks.StructBlock):
         label = "Testimonials"
 
 
-class HeroBlock(blocks.StructBlock):
-    title = blocks.CharBlock(required=True)
+class HeroProductBlock(blocks.StructBlock):
+    title = blocks.CharBlock(required=False)
     subtitle = blocks.TextBlock(required=False)
     price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
     old_price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
     image = ImageChooserBlock(required=False)
-    cta_text = blocks.CharBlock(required=False, default="Замовити зараз")
-    cta_anchor = blocks.CharBlock(required=False, default="#form", help_text="Якорь ссылки, например #form")
-    use_product_image = blocks.BooleanBlock(required=False, default=True, help_text="Если задан product у страницы — использовать его изображение")
-    use_product_price = blocks.BooleanBlock(required=False, default=True, help_text="Если задан product у страницы — использовать его цену")
+    product_chooser = SnippetChooserBlock(Product, help_text="Выберите продукт для автозаполнения полей (опционально)")
+    page_chooser = blocks.PageChooserBlock(required=False, help_text="Выберите страницу для кнопки (опционально)")
+    button_text = blocks.CharBlock(required=False, default="Подробнее")
+    button_url = blocks.URLBlock(required=False, help_text="URL для кнопки (если не выбрана страница)")
 
     class Meta:
-        icon = "pick"
+        icon = "home"
+        label = "Hero с продуктом"
+        template = "landing/blocks/hero_product.html"
+
+    @property
+    def media(self):
+        return forms.Media(js=['landing/js/hero_product_block.js'])
+
+
+class HeroBlock(blocks.StructBlock):
+    title = blocks.CharBlock(required=False)
+    subtitle = blocks.TextBlock(required=False)
+    price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
+    old_price = blocks.DecimalBlock(required=False, max_digits=10, decimal_places=2)
+    image = ImageChooserBlock(required=False)
+    button_text = blocks.CharBlock(required=False, default="Подробнее")
+    button_url = blocks.URLBlock(required=False, help_text="URL для кнопки")
+
+    class Meta:
+        icon = "home"
         label = "Hero"
+        template = "landing/blocks/hero.html"
 
 
 class GalleryBlock(blocks.StructBlock):
@@ -227,6 +253,8 @@ class HomePage(Page):
     body = StreamField(
         SafeStreamBlock(
             [
+                ("hero", HeroBlock()),
+                ("hero_product", HeroProductBlock()),
                 ("featured", FeaturedProductsBlock()),
                 ("grid", ProductGridBlock()),
                 ("testimonials", TestimonialsBlock()),

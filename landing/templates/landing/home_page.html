@@ -47,7 +47,11 @@
 
   <main>
     {% for block in page.body %}
-      {% if block.block_type == 'featured' %}
+      {% if block.block_type == 'hero' %}
+        {% include_block block %}
+      {% elif block.block_type == 'hero_product' %}
+        {% include_block block %}
+      {% elif block.block_type == 'featured' %}
         <section>
           <h2>{{ block.value.title|default:"Рекомендуем" }}</h2>
           <div class="grid">
@@ -58,9 +62,7 @@
         <section>
           <h2>{{ block.value.title }}</h2>
           <div class="grid">
-            {% with slug=block.value.category_slug %}
-              {% render_product_grid featured_products slug %}
-            {% endwith %}
+            {% render_product_grid featured_products %}
           </div>
         </section>
       {% elif block.block_type == 'testimonials' %}

@@ -1,0 +1,120 @@
+{% load static %}
+{% load wagtailcore_tags %}
+{% load wagtailimages_tags %}
+
+<section id="hero" class="hero">
+  <div class="media">
+    {% if block.value.page_chooser or block.value.button_url %}
+      <a href="{% if block.value.page_chooser %}{{ block.value.page_chooser.url }}{% elif block.value.button_url %}{{ block.value.button_url }}{% else %}#{% endif %}">
+    {% endif %}
+    {% if block.value.product_chooser and block.value.product_chooser.image %}
+      <img src="{{ block.value.product_chooser.image.url }}" alt="{% if block.value.title %}{{ block.value.title }}{% elif block.value.product_chooser %}{{ block.value.product_chooser.name }}{% else %}Product image{% endif %}" loading="lazy" itemprop="image" />
+    {% elif block.value.image %}
+      {% image block.value.image width-1200 alt=block.value.title|default:block.value.product_chooser.name loading="lazy" class="hero-img" %}
+    {% else %}
+      <div class="placeholder">No image available</div>
+    {% endif %}
+    {% if block.value.page_chooser or block.value.button_url %}
+      </a>
+    {% endif %}
+  </div>
+  <div class="content">
+    <header>
+      <h1>{% if block.value.title %}{{ block.value.title }}{% elif block.value.product_chooser %}{{ block.value.product_chooser.name }}{% else %}Hero Title{% endif %}</h1>
+      {% if block.value.subtitle %}
+        <p>{{ block.value.subtitle }}</p>
+      {% elif block.value.product_chooser.description %}
+        <p>{{ block.value.product_chooser.description|truncatewords:20 }}</p>
+      {% endif %}
+    </header>
+    <div class="pricing">
+      {% if block.value.price %}
+        <strong class="price">{{ block.value.price }} <span class="currency">грн.</span></strong>
+      {% elif block.value.product_chooser.price %}
+        <strong class="price">{{ block.value.product_chooser.price }} <span class="currency">грн.</span></strong>
+      {% endif %}
+      
+      {% if block.value.old_price %}
+        <s class="old-price">{{ block.value.old_price }} <span class="currency">грн.</span></s>
+      {% elif block.value.product_chooser %}
+        {% if block.value.product_chooser.old_price %}
+          <s class="old-price">{{ block.value.product_chooser.old_price }} <span class="currency">грн.</span></s>
+        {% endif %}
+      {% endif %}
+    </div>
+    <p>
+      <a class="btn" href="{% if block.value.page_chooser %}{{ block.value.page_chooser.url }}{% elif block.value.button_url %}{{ block.value.button_url }}{% elif block.value.product_chooser %}#{% else %}#{% endif %}">
+        {{ block.value.button_text|default:'Замовити зараз' }}
+      </a>
+    </p>
+  </div>
+</section>
+
+<style>
+.hero { 
+  display: grid; 
+  grid-template-columns: 1fr; 
+  gap: 24px; 
+  align-items: start; 
+}
+
+.hero .media a {
+  text-decoration: none;
+}
+
+.hero .media img { 
+  width: 100%; 
+  height: auto; 
+  border-radius: 8px;
+  transition: transform 0.2s ease;
+}
+
+.hero .media a:hover img {
+  transform: scale(1.02);
+}
+
+.hero header h1 { 
+  font-weight: 700; 
+  line-height: 1.25; 
+  margin-bottom: 16px; 
+}
+
+.hero header p { 
+  color: #555; 
+  margin-top: 6px; 
+}
+
+.pricing { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  margin: 8px 0 16px; 
+}
+
+.price { 
+  font-size: 28px; 
+  font-weight: 700; 
+}
+
+.old-price { 
+  color: #888; 
+  text-decoration: line-through; 
+  opacity: .7; 
+}
+
+.btn { 
+  display: inline-block; 
+  padding: 12px 20px; 
+  border-radius: 999px; 
+  background: #ff2a19; 
+  color: #fff; 
+  text-decoration: none; 
+  font-weight: 600; 
+}
+
+@media (min-width: 768px) {
+  .hero { 
+    grid-template-columns: 6fr 6fr; 
+  }
+}
+</style>

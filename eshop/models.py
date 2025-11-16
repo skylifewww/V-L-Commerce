@@ -8,8 +8,10 @@ from django.dispatch import receiver
 from django.conf import settings
 from simple_history.models import HistoricalRecords
 import requests
+from wagtail.snippets.models import register_snippet
 
 
+@register_snippet
 class Product(models.Model):
     category = models.ForeignKey(
         "Category",
