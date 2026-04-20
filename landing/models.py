@@ -248,6 +248,22 @@ class FormBlock(blocks.StructBlock):
         icon = "form"
         label = "Order Form"
 
+class TelegramNotificationBlock(blocks.StructBlock):
+    title = blocks.CharBlock(required=False, default="Telegram Notification", help_text="Title displayed in admin panel")
+    bot_token = blocks.CharBlock(required=True, help_text="Telegram Bot Token")
+    chat_id = blocks.CharBlock(required=True, help_text="Chat ID to send notifications to")
+    message_template = blocks.TextBlock(
+        required=False,
+        default="New order!\n\nCustomer: {full_name}\nPhone: {phone}\nProduct: {product_name}\nQuantity: {quantity}",
+        help_text="Message template. Available variables: {full_name}, {phone}, {email}, {product_name}, {quantity}, {comment}"
+    )
+    enable_notifications = blocks.BooleanBlock(required=True, default=True, help_text="Enable Telegram notifications")
+
+    class Meta:
+        icon = "mail"
+        label = "Telegram Notification"
+        template = "landing/blocks/telegram_notification.html"
+
 class HomePage(Page):
     icon = "home"
     
@@ -276,6 +292,7 @@ class HomePage(Page):
                 ("grid", ProductGridBlock()),
                 ("testimonials", TestimonialsBlock()),
                 ("cta", CallToActionBlock()),
+                ("telegram_notification", TelegramNotificationBlock()),
             ]
         ),
         use_json_field=True,
@@ -460,6 +477,44 @@ class ProductDetailPage(Page):
                     product=self.product_obj,
                     quantity=form.cleaned_data["quantity"],
                 )
+                
+                # Send Telegram notification
+                try:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    from .telegram_utils import find_telegram_block, send_telegram_notification, format_order_message
+                    
+                    logger.info(f"Processing order #{order.id}, looking for Telegram settings...")
+                    telegram_settings = find_telegram_block(self, form.cleaned_data)
+                    if telegram_settings:
+                        logger.info(f"Telegram settings found: bot_token={telegram_settings.get('bot_token', '')[:10]}..., chat_id={telegram_settings.get('chat_id', '')}")
+                        message = format_order_message(
+                            template=telegram_settings.get("message_template", ""),
+                            full_name=customer.full_name,
+                            phone=customer.phone,
+                            email=customer.email or "",
+                            product_name=self.product_obj.name,
+                            quantity=form.cleaned_data["quantity"],
+                            comment=form.cleaned_data.get("comment", "")
+                        )
+                        logger.info(f"Formatted message: {message[:100]}...")
+                        
+                        result = send_telegram_notification(
+                            bot_token=telegram_settings.get("bot_token", ""),
+                            chat_id=telegram_settings.get("chat_id", ""),
+                            message=message
+                        )
+                        logger.info(f"Telegram notification result: {result}")
+                    else:
+                        logger.warning("No Telegram settings found or notifications disabled")
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Telegram notification failed: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    # Do not block user flow if Telegram notification fails
+                
                 return redirect(self.url)
             ctx = self.get_context(request)
             ctx["order_form"] = form
@@ -596,6 +651,7 @@ class ProductLandingPage(Page):
                 ("benefits", BenefitsBlock()),
                 ("steps", StepsBlock()),
                 ("form", FormBlock()),
+                ("telegram_notification", TelegramNotificationBlock()),
             ]
         ),
         use_json_field=True,
@@ -659,6 +715,44 @@ class ProductLandingPage(Page):
                     )
                 except Exception:
                     pass
+                
+                # Send Telegram notification
+                try:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    from .telegram_utils import find_telegram_block, send_telegram_notification, format_order_message
+                    
+                    logger.info(f"Processing order #{order.id} on ProductLandingPage, looking for Telegram settings...")
+                    telegram_settings = find_telegram_block(self, form.cleaned_data)
+                    if telegram_settings:
+                        logger.info(f"Telegram settings found: bot_token={telegram_settings.get('bot_token', '')[:10]}..., chat_id={telegram_settings.get('chat_id', '')}")
+                        message = format_order_message(
+                            template=telegram_settings.get("message_template", ""),
+                            full_name=customer.full_name,
+                            phone=customer.phone,
+                            email=customer.email or "",
+                            product_name=self.product_obj.name if self.product_obj else "",
+                            quantity=qty,
+                            comment=form.cleaned_data.get("comment", "")
+                        )
+                        logger.info(f"Formatted message: {message[:100]}...")
+                        
+                        result = send_telegram_notification(
+                            bot_token=telegram_settings.get("bot_token", ""),
+                            chat_id=telegram_settings.get("chat_id", ""),
+                            message=message
+                        )
+                        logger.info(f"Telegram notification result: {result}")
+                    else:
+                        logger.warning("No Telegram settings found or notifications disabled")
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Telegram notification failed: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    # Do not block user flow if Telegram notification fails
+                
                 # Create Lead in internal CRM aggregator
                 try:
                     utm_source = request.GET.get("utm_source", "") or request.COOKIES.get("utm_source", "")
