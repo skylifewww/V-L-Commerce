@@ -12,6 +12,7 @@ CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if os.ge
 if DEBUG:
     ALLOWED_HOSTS.append("*.lhr.life")
     ALLOWED_HOSTS.append("*.ngrok-free.dev")
+    ALLOWED_HOSTS.append("*")  # Allow all hosts in development
     CSRF_TRUSTED_ORIGINS.extend(["https://*.lhr.life"])
     CSRF_TRUSTED_ORIGINS.extend(["https://*.ngrok-free.dev"])
 else:

@@ -263,6 +263,7 @@ Phone: {phone}
 Price: {price}
 Site: {landing_url}
 Order ID: {order_id}
+Date: {order_date}
 Country: {country}
 Office: {office}
 User IP: {user_ip}
@@ -280,7 +281,7 @@ UTM content: {utm_content}
 UTM term: {utm_term}
 UTM campaign: {utm_campaign}""",
         help_text="""Message template. Available variables:
-{order_id}, {product_id}, {product_sku}, {full_name}, {phone}, {email}, {product_name}, {quantity}, {price}, {country}, {office}, 
+{order_id}, {order_date}, {product_id}, {product_sku}, {full_name}, {phone}, {email}, {product_name}, {quantity}, {price}, {country}, {office}, 
 {landing_url}, {user_ip}, {transaction_id}, {block_id}, 
 {utm_source}, {utm_medium}, {utm_campaign}, {utm_id}, {utm_content}, {utm_term},
 {fbclid}, {ttclid}, {comment}"""
@@ -541,6 +542,7 @@ class ProductDetailPage(Page):
                             quantity=form.cleaned_data["quantity"],
                             price=str(self.product_obj.price),
                             order_id=str(order.id),
+                            order_date=order.created_at.strftime("%d-%m-%Y %H:%M") if order.created_at else "",
                             country=country,
                             office="6",
                             landing_url=landing_url,
@@ -811,6 +813,7 @@ class ProductLandingPage(Page):
                             quantity=qty,
                             price=str(self.product_obj.price) if self.product_obj else "",
                             order_id=str(order.id),
+                            order_date=order.created_at.strftime("%d-%m-%Y %H:%M") if order.created_at else "",
                             country=country,
                             office="6",
                             landing_url=landing_url,

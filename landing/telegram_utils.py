@@ -55,6 +55,7 @@ def format_order_message(
     quantity: int = 1,
     price: str = "",
     order_id: str = "",
+    order_date: str = "",
     country: str = "",
     office: str = "",
     landing_url: str = "",
@@ -85,6 +86,7 @@ def format_order_message(
         quantity: Order quantity
         price: Product price (optional)
         order_id: Order ID (optional)
+        order_date: Order date (optional)
         country: Country code (optional)
         office: Office ID (optional)
         landing_url: Landing page URL (optional)
@@ -109,6 +111,7 @@ def format_order_message(
         quantity=quantity,
         price=price,
         order_id=order_id,
+        order_date=order_date,
         country=country,
         office=office,
         landing_url=landing_url,
