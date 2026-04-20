@@ -14,6 +14,10 @@ if DEBUG:
     ALLOWED_HOSTS.append("*.ngrok-free.dev")
     CSRF_TRUSTED_ORIGINS.extend(["https://*.lhr.life"])
     CSRF_TRUSTED_ORIGINS.extend(["https://*.ngrok-free.dev"])
+else:
+    # Production settings
+    ALLOWED_HOSTS.append(".onrender.com")
+    CSRF_TRUSTED_ORIGINS.extend(["https://*.onrender.com"])
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -49,6 +53,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -74,16 +79,23 @@ if os.getenv("USE_SQLITE", "0") == "1":
         }
     }
 else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("POSTGRES_DB", "tikflow"),
-            "USER": os.getenv("POSTGRES_USER", "postgres"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
-            "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+    # Check for DATABASE_URL (used by Render and other PaaS)
+    import dj_database_url
+    if os.getenv("DATABASE_URL"):
+        DATABASES = {
+            "default": dj_database_url.parse(os.getenv("DATABASE_URL"))
         }
-    }
+    else:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": os.getenv("POSTGRES_DB", "tikflow"),
+                "USER": os.getenv("POSTGRES_USER", "postgres"),
+                "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
+                "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
+                "PORT": os.getenv("POSTGRES_PORT", "5432"),
+            }
+        }
 
 TEMPLATES = [
     {
@@ -112,8 +124,12 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# Cache control settings
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+# Static files storage - use whitenoise for production
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
 # Cache headers
 STATICFILES_MAX_AGE = 60 * 60 * 24 * 365  # 1 year for static files
 MEDIA_MAX_AGE = 60 * 60 * 24 * 30  # 30 days for media files
@@ -125,9 +141,9 @@ WAGTAILADMIN_BASE_URL = os.getenv("WAGTAILADMIN_BASE_URL", "http://localhost:800
 
 INTERNAL_IPS = ["127.0.0.1", "localhost"]
 
-# Celery / Redis
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+# Celery / Redis - use REDIS_URL if available (Render), otherwise fallback
+CELERY_BROKER_URL = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("REDIS_URL") or os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 CELERY_TASK_TIME_LIMIT = 60
 CELERY_TASK_SOFT_TIME_LIMIT = 45
 CELERY_BEAT_SCHEDULE = {

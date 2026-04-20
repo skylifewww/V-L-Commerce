@@ -8,3 +8,6 @@ django-extensions
 django-simple-history
 openpyxl
 requests
+gunicorn
+whitenoise
+dj-database-url
