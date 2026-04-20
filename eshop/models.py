@@ -128,12 +128,25 @@ class Lead(models.Model):
     email = models.EmailField(blank=True)
     product_id = models.IntegerField()
     quantity = models.IntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    country = models.CharField(max_length=2, blank=True, help_text="ISO country code")
+    office = models.CharField(max_length=32, blank=True, help_text="Office/Warehouse ID")
+    # UTM parameters
     utm_source = models.CharField(max_length=64, blank=True)
     utm_medium = models.CharField(max_length=64, blank=True)
     utm_campaign = models.CharField(max_length=128, blank=True)
+    utm_id = models.CharField(max_length=128, blank=True)
+    utm_content = models.CharField(max_length=128, blank=True)
+    utm_term = models.CharField(max_length=128, blank=True)
+    # Tracking
     ttclid = models.CharField(max_length=128, blank=True)
     fbp = models.CharField(max_length=128, blank=True)
     fbc = models.CharField(max_length=128, blank=True)
+    fbclid = models.CharField(max_length=512, blank=True)
+    # Additional IDs
+    transaction_id = models.CharField(max_length=128, blank=True, help_text="External transaction ID")
+    block_id = models.CharField(max_length=128, blank=True, help_text="Block/Record ID")
+    # Request info
     landing_url = models.URLField(blank=True)
     user_ip = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)

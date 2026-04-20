@@ -254,8 +254,36 @@ class TelegramNotificationBlock(blocks.StructBlock):
     chat_id = blocks.CharBlock(required=True, help_text="Chat ID to send notifications to")
     message_template = blocks.TextBlock(
         required=False,
-        default="New order!\n\nCustomer: {full_name}\nPhone: {phone}\nProduct: {product_name}\nQuantity: {quantity}",
-        help_text="Message template. Available variables: {full_name}, {phone}, {email}, {product_name}, {quantity}, {comment}"
+        default="""🛒 <b>NEW ORDER!</b>
+
+📋 <b>Request details:</b>
+ID: {product_id} FB {product_sku} {product_name}
+Name: {full_name}
+Phone: {phone}
+Price: {price}
+Site: {landing_url}
+Order ID: {order_id}
+Country: {country}
+Office: {office}
+User IP: {user_ip}
+
+📊 <b>Additional information:</b>
+Transaction ID: {transaction_id}
+Block ID: {block_id}
+Landing: {landing_url}
+
+📈 <b>UTM Parameters:</b>
+UTM medium: {utm_medium}
+UTM source: {utm_source}
+UTM id: {utm_id}
+UTM content: {utm_content}
+UTM term: {utm_term}
+UTM campaign: {utm_campaign}""",
+        help_text="""Message template. Available variables:
+{order_id}, {product_id}, {product_sku}, {full_name}, {phone}, {email}, {product_name}, {quantity}, {price}, {country}, {office}, 
+{landing_url}, {user_ip}, {transaction_id}, {block_id}, 
+{utm_source}, {utm_medium}, {utm_campaign}, {utm_id}, {utm_content}, {utm_term},
+{fbclid}, {ttclid}, {comment}"""
     )
     enable_notifications = blocks.BooleanBlock(required=True, default=True, help_text="Enable Telegram notifications")
 
@@ -488,13 +516,45 @@ class ProductDetailPage(Page):
                     telegram_settings = find_telegram_block(self, form.cleaned_data)
                     if telegram_settings:
                         logger.info(f"Telegram settings found: bot_token={telegram_settings.get('bot_token', '')[:10]}..., chat_id={telegram_settings.get('chat_id', '')}")
+                        
+                        # Get UTM parameters and other data
+                        utm_source = request.GET.get("utm_source", "") or request.COOKIES.get("utm_source", "")
+                        utm_medium = request.GET.get("utm_medium", "") or request.COOKIES.get("utm_medium", "")
+                        utm_campaign = request.GET.get("utm_campaign", "") or request.COOKIES.get("utm_campaign", "")
+                        utm_id = request.GET.get("utm_id", "") or request.COOKIES.get("utm_id", "")
+                        utm_content = request.GET.get("utm_content", "") or request.COOKIES.get("utm_content", "")
+                        utm_term = request.GET.get("utm_term", "") or request.COOKIES.get("utm_term", "")
+                        fbclid = request.GET.get("fbclid", "") or request.COOKIES.get("fbclid", "")
+                        ttclid = request.GET.get("ttclid", "") or request.COOKIES.get("ttclid", "")
+                        country = form.cleaned_data.get("country", "")
+                        user_ip = request.META.get("REMOTE_ADDR", "")
+                        landing_url = request.build_absolute_uri()
+                        
                         message = format_order_message(
                             template=telegram_settings.get("message_template", ""),
                             full_name=customer.full_name,
                             phone=customer.phone,
                             email=customer.email or "",
+                            product_id=str(self.product_obj.id),
+                            product_sku=str(self.product_obj.sku),
                             product_name=self.product_obj.name,
                             quantity=form.cleaned_data["quantity"],
+                            price=str(self.product_obj.price),
+                            order_id=str(order.id),
+                            country=country,
+                            office="6",
+                            landing_url=landing_url,
+                            user_ip=user_ip,
+                            transaction_id=f"{order.id}:8180796484",
+                            block_id=f"rec{int(order.created_at.timestamp())}" if order.created_at else "",
+                            utm_source=utm_source,
+                            utm_medium=utm_medium,
+                            utm_campaign=utm_campaign,
+                            utm_id=utm_id,
+                            utm_content=utm_content,
+                            utm_term=utm_term,
+                            fbclid=fbclid,
+                            ttclid=ttclid,
                             comment=form.cleaned_data.get("comment", "")
                         )
                         logger.info(f"Formatted message: {message[:100]}...")
@@ -726,13 +786,45 @@ class ProductLandingPage(Page):
                     telegram_settings = find_telegram_block(self, form.cleaned_data)
                     if telegram_settings:
                         logger.info(f"Telegram settings found: bot_token={telegram_settings.get('bot_token', '')[:10]}..., chat_id={telegram_settings.get('chat_id', '')}")
+                        
+                        # Get UTM parameters and other data
+                        utm_source = request.GET.get("utm_source", "") or request.COOKIES.get("utm_source", "")
+                        utm_medium = request.GET.get("utm_medium", "") or request.COOKIES.get("utm_medium", "")
+                        utm_campaign = request.GET.get("utm_campaign", "") or request.COOKIES.get("utm_campaign", "")
+                        utm_id = request.GET.get("utm_id", "") or request.COOKIES.get("utm_id", "")
+                        utm_content = request.GET.get("utm_content", "") or request.COOKIES.get("utm_content", "")
+                        utm_term = request.GET.get("utm_term", "") or request.COOKIES.get("utm_term", "")
+                        fbclid = request.GET.get("fbclid", "") or request.COOKIES.get("fbclid", "")
+                        ttclid = request.GET.get("ttclid", "") or request.COOKIES.get("ttclid", "")
+                        country = form.cleaned_data.get("country", "")
+                        user_ip = request.META.get("REMOTE_ADDR", "")
+                        landing_url = request.build_absolute_uri()
+                        
                         message = format_order_message(
                             template=telegram_settings.get("message_template", ""),
                             full_name=customer.full_name,
                             phone=customer.phone,
                             email=customer.email or "",
+                            product_id=str(self.product_obj.id) if self.product_obj else "",
+                            product_sku=str(self.product_obj.sku) if self.product_obj else "",
                             product_name=self.product_obj.name if self.product_obj else "",
                             quantity=qty,
+                            price=str(self.product_obj.price) if self.product_obj else "",
+                            order_id=str(order.id),
+                            country=country,
+                            office="6",
+                            landing_url=landing_url,
+                            user_ip=user_ip,
+                            transaction_id=f"{order.id}:8180796484",
+                            block_id=f"rec{int(order.created_at.timestamp())}" if order.created_at else "",
+                            utm_source=utm_source,
+                            utm_medium=utm_medium,
+                            utm_campaign=utm_campaign,
+                            utm_id=utm_id,
+                            utm_content=utm_content,
+                            utm_term=utm_term,
+                            fbclid=fbclid,
+                            ttclid=ttclid,
                             comment=form.cleaned_data.get("comment", "")
                         )
                         logger.info(f"Formatted message: {message[:100]}...")
@@ -755,30 +847,58 @@ class ProductLandingPage(Page):
                 
                 # Create Lead in internal CRM aggregator
                 try:
+                    # UTM parameters from GET or COOKIES
                     utm_source = request.GET.get("utm_source", "") or request.COOKIES.get("utm_source", "")
                     utm_medium = request.GET.get("utm_medium", "") or request.COOKIES.get("utm_medium", "")
                     utm_campaign = request.GET.get("utm_campaign", "") or request.COOKIES.get("utm_campaign", "")
+                    utm_id = request.GET.get("utm_id", "") or request.COOKIES.get("utm_id", "")
+                    utm_content = request.GET.get("utm_content", "") or request.COOKIES.get("utm_content", "")
+                    utm_term = request.GET.get("utm_term", "") or request.COOKIES.get("utm_term", "")
+                    # Tracking
                     ttclid = request.GET.get("ttclid", "") or request.COOKIES.get("ttclid", "")
                     fbp = request.COOKIES.get("_fbp", "")
                     fbc = request.COOKIES.get("_fbc", "")
+                    fbclid = request.GET.get("fbclid", "") or request.COOKIES.get("fbclid", "")
+                    # Get country from form
+                    country = form.cleaned_data.get("country", "")
+                    # Build full landing URL with query params
+                    landing_url = request.build_absolute_uri()
                     Lead.objects.create(
                         order=order,
                         full_name=customer.full_name,
                         phone=customer.phone,
                         email=customer.email or "",
-                        product_id=self.product_obj.id,
+                        product_id=self.product_obj.id if self.product_obj else 0,
                         quantity=qty,
+                        price=self.product_obj.price if self.product_obj else None,
+                        country=country,
+                        office="6",  # Default office ID
+                        # UTM parameters
                         utm_source=utm_source,
                         utm_medium=utm_medium,
                         utm_campaign=utm_campaign,
+                        utm_id=utm_id,
+                        utm_content=utm_content,
+                        utm_term=utm_term,
+                        # Tracking
                         ttclid=ttclid,
                         fbp=fbp,
                         fbc=fbc,
-                        landing_url=request.build_absolute_uri(),
+                        fbclid=fbclid,
+                        # IDs
+                        transaction_id=f"{order.id}:8180796484",  # Format: order_id:transaction_number
+                        block_id=f"rec{int(order.created_at.timestamp())}" if order.created_at else "",
+                        # Request info
+                        landing_url=landing_url,
                         user_ip=(request.META.get("REMOTE_ADDR") or None),
                         user_agent=request.META.get("HTTP_USER_AGENT", ""),
                     )
-                except Exception:
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Lead creation failed: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
                     # Do not block user flow if Lead creation fails
                     pass
                 if self.success_page_id:

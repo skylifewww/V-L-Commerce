@@ -49,20 +49,51 @@ def format_order_message(
     full_name: str,
     phone: str,
     email: str = "",
+    product_id: str = "",
+    product_sku: str = "",
     product_name: str = "",
     quantity: int = 1,
+    price: str = "",
+    order_id: str = "",
+    country: str = "",
+    office: str = "",
+    landing_url: str = "",
+    user_ip: str = "",
+    transaction_id: str = "",
+    block_id: str = "",
+    utm_source: str = "",
+    utm_medium: str = "",
+    utm_campaign: str = "",
+    utm_id: str = "",
+    utm_content: str = "",
+    utm_term: str = "",
+    fbclid: str = "",
+    ttclid: str = "",
     comment: str = ""
 ) -> str:
     """
-    Format order message using template
+    Format order message using template with full order details
     
     Args:
         template: Message template with placeholders
         full_name: Customer full name
         phone: Customer phone
         email: Customer email (optional)
+        product_id: Product ID (CRM ID) (optional)
+        product_sku: Product SKU (optional)
         product_name: Product name (optional)
         quantity: Order quantity
+        price: Product price (optional)
+        order_id: Order ID (optional)
+        country: Country code (optional)
+        office: Office ID (optional)
+        landing_url: Landing page URL (optional)
+        user_ip: User IP address (optional)
+        transaction_id: Transaction ID (optional)
+        block_id: Block/Record ID (optional)
+        utm_source, utm_medium, utm_campaign, utm_id, utm_content, utm_term: UTM parameters (optional)
+        fbclid: Facebook click ID (optional)
+        ttclid: TikTok click ID (optional)
         comment: Customer comment (optional)
     
     Returns:
@@ -72,8 +103,26 @@ def format_order_message(
         full_name=full_name,
         phone=phone,
         email=email,
+        product_id=product_id,
+        product_sku=product_sku,
         product_name=product_name,
         quantity=quantity,
+        price=price,
+        order_id=order_id,
+        country=country,
+        office=office,
+        landing_url=landing_url,
+        user_ip=user_ip,
+        transaction_id=transaction_id,
+        block_id=block_id,
+        utm_source=utm_source,
+        utm_medium=utm_medium,
+        utm_campaign=utm_campaign,
+        utm_id=utm_id,
+        utm_content=utm_content,
+        utm_term=utm_term,
+        fbclid=fbclid,
+        ttclid=ttclid,
         comment=comment
     )
 
